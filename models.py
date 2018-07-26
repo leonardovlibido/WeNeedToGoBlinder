@@ -1,5 +1,6 @@
 from keras.layers import Conv2D, MaxPool2D, BatchNormalization, Dropout, Dense, Flatten, Input
 from keras.models import Model
+import data_utils
 
 def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=False):
 	x = Input(shape=input_shape)
@@ -33,3 +34,28 @@ def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=Fal
 	if print_summary:
 		model.summary()
 	return model
+
+
+def freeze_model(model):
+	for layer in model.layers:
+		layer.trainable = False
+
+
+def unfreeze_model(model):
+	for layer in model.layers:
+		layer.trainable = True
+
+
+def evaluate_model(model_path = 'best_model_classifier/first_model.20-0.27.hdf5',
+				   dataset_path = 'emnist/emnist-balanced-test.csv'):
+	raw_test_x, raw_test_y, class_map = data_utils.load_dataset(dataset_path)
+	test_x, test_y, _ = data_utils.prepare_data(raw_test_x, raw_test_y, class_map)
+	best_model = data_utils.load_model(model_path)
+	print(best_model.evaluate(test_x, test_y))
+	data_utils.print_confusion_matrix(test_x, test_y, model_path= model_path)
+
+def prepare_classification_model(model):
+	model.layers.pop()
+	model.layers.pop()
+	freeze_model(model)
+	model.compile(optimizer='adam', metrics=['accuracy'], loss='categorical_crossentropy')

@@ -23,3 +23,9 @@ history = model.fit(train_x, train_y, batch_size=32, epochs=75, validation_data=
 												filepath='checkpoints/first_model.{epoch:02d}-{val_loss:.2f}.hdf5'),
 								ReduceLROnPlateau(factor=0.2, verbose=1)])
 plot_history(history)
+
+prepare_classification_model(model)
+
+model.summary()
+
+# evaluate_model()

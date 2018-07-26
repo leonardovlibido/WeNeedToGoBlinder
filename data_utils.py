@@ -59,19 +59,19 @@ def plot_history(history):
 	plt.show()
 
 
-def print_confusion_matrix(model_path):
+def print_confusion_matrix(dataset_x, dataset_y, model_path):
 	_, _, class_map = load_dataset()
 	labels = []
 	for i in range(0,47):
 		labels.append(class_map[i])
 
 	best_model = load_model(model_path)
-	predictions = best_model.predict(validation_x)
+	predictions = best_model.predict(dataset_x)
 
 	predictions_nums = np.argmax(predictions, axis=1)
-	validation_y_nums = np.argmax(validation_y, axis=1)
+	dataset_y = np.argmax(dataset_y, axis=1)
 
-	confusion_mat = confusion_matrix(validation_y_nums, predictions_nums)
+	confusion_mat = confusion_matrix(dataset_y, predictions_nums)
 
 	print('  ', end='  ')
 	for j in labels:
