@@ -11,7 +11,7 @@ N_BALANCED_TRAIN = 112800
 INPUT_SHAPE = (28, 28, 1)
 
 
-raw_train_x, raw_train_y, class_map = load_dataset(N_BALANCED_TRAIN)
+raw_train_x, raw_train_y, class_map = load_dataset()
 # explore_dataset(train_x, train_y, train_map)
 train_x_all, train_y_all, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
 train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_y_all, test_size=0.2, random_state=42)

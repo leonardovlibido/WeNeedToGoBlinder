@@ -3,16 +3,21 @@ import matplotlib.pyplot as plt
 from keras.utils import to_categorical
 import csv
 from skimage.filters import gaussian
+from keras.models import load_model
+from sklearn.metrics import classification_report, confusion_matrix
 
-def load_dataset(n_data, fpath='emnist/emnist-balanced-train.csv', mpath='emnist/emnist-balanced-mapping.txt'):
-	X = np.zeros((n_data, 28, 28, 1), dtype=np.float32)
-	Y = np.zeros((n_data, 1), dtype=np.int32)
+def load_dataset(fpath='emnist/emnist-balanced-train.csv', mpath='emnist/emnist-balanced-mapping.txt'):
+	X = []
+	Y = []
+
 	M = {}
 	with open(fpath) as csv_file:
 		reader = csv.reader(csv_file)
 		for idx, row in enumerate(reader):
-			Y[idx] = int(row[0])
-			X[idx] = np.transpose(np.reshape(np.array(row[1:], np.float32), (28, 28, 1)), [1, 0, 2])
+			Y.append(int(row[0]))
+			X.append(np.transpose(np.reshape(np.array(row[1:], np.float32), (28, 28, 1)), [1, 0, 2]))
+	X = np.array(X)
+	Y = np.array(Y)
 
 	with open(mpath) as map_file:
 		for line in map_file:
@@ -52,6 +57,33 @@ def plot_history(history):
 	plt.xlabel('epoch')
 	plt.legend(['train', 'validation'], loc='upper left')
 	plt.show()
+
+
+def print_confusion_matrix(model_path):
+	_, _, class_map = load_dataset()
+	labels = []
+	for i in range(0,47):
+		labels.append(class_map[i])
+
+	best_model = load_model(model_path)
+	predictions = best_model.predict(validation_x)
+
+	predictions_nums = np.argmax(predictions, axis=1)
+	validation_y_nums = np.argmax(validation_y, axis=1)
+
+	confusion_mat = confusion_matrix(validation_y_nums, predictions_nums)
+
+	print('  ', end='  ')
+	for j in labels:
+		print(str(j), end='   ')
+	print()
+	for idx, i in enumerate(confusion_mat):
+		print(str(labels[idx]), end=' ')
+		for j in i:
+			print('%3d' % (j), end=' ')
+		# print(j, end=' ')
+		print()
+
 
 class ElasticDistortion:
 	def __init__(self, grid_shape, alpha=50, sigma=1.5):
