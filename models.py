@@ -1,4 +1,5 @@
 from keras.layers import Conv2D, MaxPool2D, BatchNormalization, Dropout, Dense, Flatten, Input, ELU
+from keras.layers import Deconv2D, Reshape
 from keras.models import Model
 import data_utils
 from keras.models import load_model
@@ -45,6 +46,66 @@ def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=Fal
 	model = Model(x, y_hat)
 	if print_summary:
 		model.summary()
+	return model
+
+
+def get_autoencoder_model(input_shape=(28, 28, 1), print_summary=False):
+	input_img = Input(shape=input_shape)
+
+	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(input_img)
+	x = ELU()(x)
+	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+
+	x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+
+	x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+
+	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+# 2x2x8
+	encoded = Flatten()(x)
+
+	x = Reshape(target_shape=(2, 2, 8))(encoded)
+
+	x = Deconv2D(8, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	x = Deconv2D(16, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	x = Deconv2D(32, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	x = Deconv2D(64, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	decoded = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh')(x)
+
+	model = Model(input_img, decoded)
+	if print_summary:
+		model.summary()
+
 	return model
 
 
