@@ -4,9 +4,9 @@ from keras.utils import to_categorical
 import csv
 from skimage.filters import gaussian
 from keras.models import load_model
-from sklearn.metrics import classification_report, confusion_matrix
+from sklearn.metrics import  confusion_matrix
 
-def load_dataset(fpath='emnist/emnist-balanced-train.csv', mpath='emnist/emnist-balanced-mapping.txt'):
+def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
 	X = []
 	Y = []
 
