@@ -3,6 +3,9 @@ from keras.layers import Deconv2D, Reshape
 from keras.models import Model
 import data_utils
 from keras.models import load_model
+from keras.callbacks import Callback
+import os
+import numpy as np
 
 def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=False):
 	x = Input(shape=input_shape)
@@ -124,10 +127,6 @@ def unfreeze_model(model):
 		layer.trainable = True
 
 
-def copy_model_weights(input_model, output_model, last_layer_name=''):
-	pass
-
-
 def evaluate_model(model_path, dataset_path = 'emnist/emnist-balanced-test.csv'):
 	raw_test_x, raw_test_y, class_map = data_utils.load_dataset(dataset_path)
 	test_x, test_y, _ = data_utils.prepare_data(raw_test_x, raw_test_y, class_map)
@@ -140,3 +139,26 @@ def prepare_classification_model(model):
 	model.layers.pop()
 	freeze_model(model)
 	model.compile(optimizer='adam', metrics=['accuracy'], loss='categorical_crossentropy')
+
+
+class AutoencoderCheckpointer(Callback):
+	def __init__(self, directory, base_name, encoder, decoder, save_model=False):
+		super().__init__()
+		self.path_model = os.path.join(directory, base_name)
+		self.path_encoder = os.path.join(directory, base_name + '_encoder')
+		self.path_decoder = os.path.join(directory, base_name + '_decoder')
+
+		self.encoder = encoder
+		self.decoder = decoder
+		self.best_loss = np.inf
+		self.save_model = save_model
+
+	def on_epoch_end(self, epoch, logs=None):
+		current = logs.get('val_loss')
+		if current < self.best_loss:
+			self.best_loss = current
+			if self.save_model:
+				self.model.save(self.path_model + '_' + str(epoch) + '_' + "{:.2f}".format(current) + '.hdf5')
+			self.encoder.save(self.path_encoder + '_' + str(epoch) + '_' + "{:.2f}".format(current) + '.hdf5')
+			self.decoder.save(self.path_decoder + '_' + str(epoch) + '_' + "{:.2f}".format(current) + '.hdf5')
+

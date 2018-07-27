@@ -87,8 +87,10 @@ def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                                   epochs=epochs,
                                   steps_per_epoch=train_x.shape[0] // batch_size,
                                   validation_data=(validation_x, validation_y),
-                                  callbacks=[ModelCheckpoint(save_best_only=True,
-                                                             filepath=checkpoint_path),
+                                  callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
+                                                                     encoder, decoder),
+                                      # ModelCheckpoint(save_best_only=True,
+                                      #                        filepath=checkpoint_path),
                                              ReduceLROnPlateau(factor=0.2, verbose=1),
                                              TensorBoard(log_dir='logs/autoencoder')])
     plot_history(history, have_accuracy=False)
@@ -110,8 +112,7 @@ def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
 
     show_images(show_orig + show_output, cols=2)
 
-def visualize_autoencoder(model_path, data_path='emnist/emnist-balanced-train.csv'):
-    model = load_model(model_path)
+def visualize_autoencoder(enc_path, dec_path, data_path='emnist/emnist-balanced-train.csv'):
     # Load raw data, normalize and hot encode
     raw_train_x, raw_train_y, class_map = load_dataset(data_path)
     train_x_all, _, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
@@ -121,9 +122,9 @@ def visualize_autoencoder(model_path, data_path='emnist/emnist-balanced-train.cs
     train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_x_all,
                                                                     test_size=0.2, random_state=42)
     # Evaluate autoencoder
-    encoder = Model(model.input, model.get_layer(name='encoding_layer').output)
+    encoder = load_model(enc_path)
     print("Encoder success!")
-    decoder = Model(model.get_layer(name='decoding_input').input, model.output)
+    decoder = load_model(dec_path)
     explore_x = train_x[:5]
 
     # Visualize auto encoder
