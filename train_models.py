@@ -80,17 +80,28 @@ def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
     feature_vec_gen = load_model(featurizer_path)
     feature_vec_gen = prepare_classification_model(feature_vec_gen)
 
-    model, encoder, decoder, z_mean, z_log_sigma = get_CVAE_model(feature_vec_gen)
+    model, encoder, decoder, z_mean, z_log_sigma = get_CVAE_model(feature_vec_gen, print_summary=True)
 
-    original_dim = 28*28
-    reconstruction_loss = mse(model.input, model.output)
-    reconstruction_loss *= original_dim
-    kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
-    kl_loss = K.sum(kl_loss, axis=-1)
-    kl_loss *= -0.5
-    vae_loss = K.mean(reconstruction_loss + kl_loss)
-    model.add_loss(vae_loss)
-    model.compile(optimizer='adam')
+    def vae_loss(y_true, y_pred):
+        y_true_flat = K.flatten(y_true)
+        y_pred_flat = K.flatten(y_pred)
+        recon = K.mean(K.square(y_true_flat - y_pred_flat))
+        kl = 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma)
+        return recon + kl
+
+    def KL_loss(y_true, y_pred):
+        return 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma)
+    #     return 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma, axis=1)
+    #
+    def recon_loss(y_true, y_pred):
+        y_true_flat = K.flatten(y_true)
+        y_pred_flat = K.flatten(y_pred)
+        return K.mean(K.square(y_true_flat - y_pred_flat))
+    #     y_true_flat, y_pred_flat = _remap_y(y_true, y_pred)
+    #     return K.sum(K.binary_crossentropy(y_true_flat, y_pred_flat), axis=-1)
+
+    model.compile(optimizer='adam', loss=vae_loss, metrics=[KL_loss, recon_loss])
+    # model.compile(optimizer='adam', loss=KL_loss)
 
     # Create image generator
     datagen = ImageDataGenerator(shear_range=0.05, rotation_range=5, width_shift_range=0.1,
