@@ -56,7 +56,7 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
 
 def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                       batch_size=CLASS_BATCH_SIZE,
-                      epochs=1,
+                      epochs=50,
                       model_checkpoint_dir='autoenc_checkpoints',
                       model_checkpoint_name='autoenc_32',
                       limit_gpu_fraction=0.3):
@@ -90,7 +90,7 @@ def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                                   callbacks=[ModelCheckpoint(save_best_only=True,
                                                              filepath=checkpoint_path),
                                              ReduceLROnPlateau(factor=0.2, verbose=1),
-                                             TensorBoard(log_dir='logs')])
+                                             TensorBoard(log_dir='logs/autoencoder')])
     plot_history(history, have_accuracy=False)
 
     # Evaluate autoencoder

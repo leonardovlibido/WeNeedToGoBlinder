@@ -124,6 +124,10 @@ def unfreeze_model(model):
 		layer.trainable = True
 
 
+def copy_model_weights(input_model, output_model, last_layer_name=''):
+	pass
+
+
 def evaluate_model(model_path, dataset_path = 'emnist/emnist-balanced-test.csv'):
 	raw_test_x, raw_test_y, class_map = data_utils.load_dataset(dataset_path)
 	test_x, test_y, _ = data_utils.prepare_data(raw_test_x, raw_test_y, class_map)
