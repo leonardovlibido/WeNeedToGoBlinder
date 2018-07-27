@@ -48,9 +48,8 @@ def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=Fal
 		model.summary()
 	return model
 
-
-def get_autoencoder_model(input_shape=(28, 28, 1), print_summary=False):
-	input_img = Input(shape=input_shape)
+def _get_encoder(input_shape=(28, 28, 1)):
+	input_img = Input(shape=input_shape, name='encoder_input')
 
 	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(input_img)
 	x = ELU()(x)
@@ -75,10 +74,13 @@ def get_autoencoder_model(input_shape=(28, 28, 1), print_summary=False):
 	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
 	x = ELU()(x)
 	x = MaxPool2D(pool_size=2, padding='same')(x)
-# 2x2x8
-	encoded = Flatten(name='encoding_layer')(x)
+	# 2x2x8
+	encoder = Flatten(name='encoding_layer')(x)
+	return Model(input_img, encoder)
 
-	x = Reshape(target_shape=(2, 2, 8))(encoded)
+def _get_decoder(input_shape=(32,)):
+	input_code = Input(input_shape, name='decoder_input')
+	x = Reshape(target_shape=(2, 2, 8))(input_code)
 
 	x = Deconv2D(8, kernel_size=3, strides=2, padding='same')(x)
 	x = ELU()(x)
@@ -100,14 +102,17 @@ def get_autoencoder_model(input_shape=(28, 28, 1), print_summary=False):
 	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
 	x = ELU()(x)
 
-	decoded = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh', name='decoding_layer')(x)
+	decoder = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh', name='decoding_layer')(x)
+	return Model(input_code, decoder)
 
-	model = Model(input_img, decoded)
+def get_autoencoder_model(input_shape=(28, 28, 1), print_summary=False):
+	x = Input(shape=(28, 28, 1))
+	encoder = _get_encoder()
+	decoder = _get_decoder()
+	model = Model(x, decoder(encoder(x)))
 	if print_summary:
 		model.summary()
-
-	return model
-
+	return model, encoder, decoder
 
 def freeze_model(model):
 	for layer in model.layers:

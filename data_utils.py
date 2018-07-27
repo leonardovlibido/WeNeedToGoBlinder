@@ -6,6 +6,20 @@ from skimage.filters import gaussian
 from keras.models import load_model
 from sklearn.metrics import  confusion_matrix
 
+def show_images(images, cols=1, titles=None):
+	assert ((titles is None) or (len(images) == len(titles)))
+	n_images = len(images)
+	if titles is None: titles = ['Image (%d)' % i for i in range(1, n_images + 1)]
+	fig = plt.figure()
+	for n, (image, title) in enumerate(zip(images, titles)):
+		a = fig.add_subplot(cols, np.ceil(n_images / float(cols)), n + 1)
+		if image.ndim == 2:
+			plt.gray()
+		plt.imshow(image)
+		a.set_title(title)
+	fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
+	plt.show()
+
 def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
 	X = []
 	Y = []
@@ -39,17 +53,18 @@ def explore_dataset(X, Y, M, n_data, n_samples=5):
 		plt.imshow(X[idx, :, :, 0], cmap='gray')
 		plt.show()
 
-def plot_history(history):
-	# summarize history for accuracy
-	plt.plot(history.history['acc'])
-	plt.plot(history.history['val_acc'])
-	plt.title('model accuracy')
-	plt.ylabel('accuracy')
-	plt.xlabel('epoch')
-	plt.legend(['train', 'validation'], loc='upper left')
-	plt.show()
+def plot_history(history, have_accuracy=True):
+	# Summarize history for accuracy
+	if have_accuracy:
+		plt.plot(history.history['acc'])
+		plt.plot(history.history['val_acc'])
+		plt.title('model accuracy')
+		plt.ylabel('accuracy')
+		plt.xlabel('epoch')
+		plt.legend(['train', 'validation'], loc='upper left')
+		plt.show()
 
-	# summarize history for loss
+	# Summarize history for loss
 	plt.plot(history.history['loss'])
 	plt.plot(history.history['val_loss'])
 	plt.title('model loss')

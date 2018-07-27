@@ -56,7 +56,7 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
 
 def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                       batch_size=CLASS_BATCH_SIZE,
-                      epochs=50,
+                      epochs=1,
                       model_checkpoint_dir='autoenc_checkpoints',
                       model_checkpoint_name='autoenc_32',
                       limit_gpu_fraction=0.3):
@@ -74,7 +74,7 @@ def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                                                                     test_size=0.2, random_state=42)
 
     # Get model for classification and compile it
-    model = get_autoencoder_model()
+    model, encoder, decoder = get_autoencoder_model()
     model.compile(optimizer='adam', loss='mse')
 
     # Create image generator
@@ -91,4 +91,53 @@ def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                                                              filepath=checkpoint_path),
                                              ReduceLROnPlateau(factor=0.2, verbose=1),
                                              TensorBoard(log_dir='logs')])
-    plot_history(history)
+    plot_history(history, have_accuracy=False)
+
+    # Evaluate autoencoder
+    explore_x = train_x[:5]
+
+    # Visualize auto encoder
+    show_orig = []
+    show_output = []
+    for img in explore_x:
+        show_orig.append(img.reshape((28, 28)))
+        out_img = decoder.predict(encoder.predict(np.reshape(img, (1, 28, 28, 1))))
+        show_output.append(out_img.reshape((28, 28)))
+
+    for i in range(len(show_orig)):
+        show_orig[i] = (show_orig[i] + 1) / 2
+        show_output[i] = (show_output[i] + 1) / 2
+
+    show_images(show_orig + show_output, cols=2)
+
+def visualize_autoencoder(model_path, data_path='emnist/emnist-balanced-train.csv'):
+    model = load_model(model_path)
+    # Load raw data, normalize and hot encode
+    raw_train_x, raw_train_y, class_map = load_dataset(data_path)
+    train_x_all, _, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
+
+    # Split data set to train/validation
+    # NOTE: X is input and output this is not mistake
+    train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_x_all,
+                                                                    test_size=0.2, random_state=42)
+    # Evaluate autoencoder
+    encoder = Model(model.input, model.get_layer(name='encoding_layer').output)
+    print("Encoder success!")
+    decoder = Model(model.get_layer(name='decoding_input').input, model.output)
+    explore_x = train_x[:5]
+
+    # Visualize auto encoder
+    show_orig = []
+    show_output = []
+    for img in explore_x:
+        show_orig.append(img.reshape((28, 28)))
+        out_img = decoder.predict(encoder.predict(np.reshape(img, (1, 28, 28, 1))))
+        show_output.append(out_img.reshape((28, 28)))
+
+    for i in range(len(show_orig)):
+        show_orig[i] = (show_orig[i] + 1) / 2
+        show_output[i] = (show_output[i] + 1) / 2
+
+    show_images(show_orig + show_output, cols=2)
+
+
