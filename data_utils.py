@@ -59,10 +59,9 @@ def plot_history(history):
 	plt.show()
 
 
-def print_confusion_matrix(dataset_x, dataset_y, model_path):
-	_, _, class_map = load_dataset()
+def print_confusion_matrix(dataset_x, dataset_y, model_path, class_map):
 	labels = []
-	for i in range(0,47):
+	for i in range(47):
 		labels.append(class_map[i])
 
 	best_model = load_model(model_path)
