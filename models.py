@@ -1,11 +1,12 @@
 from keras.layers import Conv2D, MaxPool2D, BatchNormalization, Dropout, Dense, Flatten, Input, ELU
-from keras.layers import Deconv2D, Reshape
+from keras.layers import Deconv2D, Reshape, Concatenate, Lambda
 from keras.models import Model
 import data_utils
 from keras.models import load_model
 from keras.callbacks import Callback
 import os
 import numpy as np
+from keras import backend as K
 
 def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=False):
 	x = Input(shape=input_shape)
@@ -51,6 +52,107 @@ def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=Fal
 		model.summary()
 	return model
 
+
+def get_CVAE_model(feature_vector_generator, print_summary=False):
+	encoder, z_mean, z_log_sigma  = _get_CVAE_encoder(feature_vector_generator)
+	decoder = _get_CVAE_decoder()
+
+	input_img = Input((28,28,1))
+	model= Model(input_img, decoder(encoder(input_img)))
+
+	if print_summary:
+		feature_vector_generator.summary()
+		model.summary()
+		encoder.summary()
+		decoder.summary()
+	return model, encoder, decoder, z_mean, z_log_sigma
+
+
+def _get_CVAE_encoder(feature_vector_generator, input_shape=(28, 28, 1)):
+	input_img = Input(shape=input_shape, name='autoencoder_input')
+	# feature_vector = feature_vector_generator(input_img)
+
+	flat_img = Flatten(name='flattenAutoEncoder')(input_img)
+	c = feature_vector_generator(input_img)
+	x = Concatenate()([flat_img, c])
+	x = Dense(784)(x)
+	x = Reshape(target_shape=(28, 28, 1))(x)
+
+	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+
+	x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+
+	x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+
+	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+	x = MaxPool2D(pool_size=2, padding='same')(x)
+	# 2x2x8
+	encoder = Flatten(name='encoding_layer')(x)
+
+	latent_dim = 64
+	z_mean = Dense(latent_dim)(encoder)
+	z_log_sigma = Dense(latent_dim)(encoder)
+
+	z = Lambda(sampling, output_shape=(latent_dim,), name="sampling_add")([z_mean, z_log_sigma])
+
+	final_encoded = Concatenate()([z, c])
+
+
+	return Model(input_img, final_encoded), z_mean, z_log_sigma
+
+def _get_CVAE_decoder(input_shape=(96,)):
+	input_code = Input(input_shape, name='decoder_input')
+	x = Dense(32, name='sampling_dense')(input_code)
+
+	x = Reshape(target_shape=(2, 2, 8))(x)
+
+	x = Deconv2D(8, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	x = Deconv2D(16, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	x = Deconv2D(32, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	x = Deconv2D(64, kernel_size=3, strides=2, padding='same')(x)
+	x = ELU()(x)
+	x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
+	x = ELU()(x)
+
+	decoder = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh', name='decoding_layer')(x)
+	return Model(input_code, decoder)
+
+
+def sampling(args):
+	z_mean, z_log_var = args
+	batch = K.shape(z_mean)[0]
+	dim = K.int_shape(z_mean)[1]
+	epsilon = K.random_normal(shape=(batch, dim))
+	return z_mean + K.exp(0.5 * z_log_var) * epsilon
+
+
 def _get_encoder(input_shape=(28, 28, 1)):
 	input_img = Input(shape=input_shape, name='encoder_input')
 
@@ -80,6 +182,7 @@ def _get_encoder(input_shape=(28, 28, 1)):
 	# 2x2x8
 	encoder = Flatten(name='encoding_layer')(x)
 	return Model(input_img, encoder)
+
 
 def _get_decoder(input_shape=(32,)):
 	input_code = Input(input_shape, name='decoder_input')
@@ -135,11 +238,14 @@ def evaluate_model(model_path, dataset_path = 'emnist/emnist-balanced-test.csv')
 	data_utils.print_confusion_matrix(test_x, test_y, model_path, class_map)
 
 def prepare_classification_model(model):
-	model.layers.pop()
-	model.layers.pop()
-	freeze_model(model)
-	model.compile(optimizer='adam', metrics=['accuracy'], loss='categorical_crossentropy')
-
+	# model.layers.pop()
+	# model.layers.pop()
+	# model.layers.pop()
+	# freeze_model(model)
+	# model.compile(optimizer='adam', metrics=['accuracy'], loss='categorical_crossentropy')
+	featurizer = Model(model.input, model.get_layer(name='fc3').output)
+	freeze_model(featurizer)
+	return featurizer
 
 class AutoencoderCheckpointer(Callback):
 	def __init__(self, directory, base_name, encoder, decoder, save_model=False):

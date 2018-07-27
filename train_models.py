@@ -3,6 +3,8 @@ from data_utils import *
 from sklearn.model_selection import train_test_split
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
+from keras.losses import mse, binary_crossentropy
+import keras.backend as K
 import os
 
 import tensorflow as tf
@@ -52,6 +54,75 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
                                              ReduceLROnPlateau(factor=0.2, verbose=1),
                                              TensorBoard(log_dir='logs')])
     plot_history(history)
+
+
+def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
+               featurizer_path='best_model_classifier/aug_32.43-0.28.hdf5',
+               batch_size=CLASS_BATCH_SIZE,
+               epochs=50,
+               model_checkpoint_dir='CVAE_checkpoints',
+               model_checkpoint_name='CVAE_32',
+               limit_gpu_fraction=0.5):
+    # Limit GPU memory if not None
+    if limit_gpu_fraction is not None:
+        _limit_gpu_memory(limit_gpu_fraction)
+
+    # Load raw data, normalize and hot encode
+    raw_train_x, raw_train_y, class_map = load_dataset(data_path)
+    train_x_all, _, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
+
+    # Split data set to train/validation
+    # NOTE: X is input and output this is not mistake
+    train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_x_all,
+                                                                    test_size=0.2, random_state=42)
+
+    # Get model for classification and compile it
+    feature_vec_gen = load_model(featurizer_path)
+    feature_vec_gen = prepare_classification_model(feature_vec_gen)
+
+    model, encoder, decoder, z_mean, z_log_sigma = get_CVAE_model(feature_vec_gen)
+
+    original_dim = 28*28
+    reconstruction_loss = mse(model.input, model.output)
+    reconstruction_loss *= original_dim
+    kl_loss = 1 + z_log_sigma - K.square(z_mean) - K.exp(z_log_sigma)
+    kl_loss = K.sum(kl_loss, axis=-1)
+    kl_loss *= -0.5
+    vae_loss = K.mean(reconstruction_loss + kl_loss)
+    model.add_loss(vae_loss)
+    model.compile(optimizer='adam')
+
+    # Create image generator
+    datagen = ImageDataGenerator(shear_range=0.05, rotation_range=5, width_shift_range=0.1,
+                                 preprocessing_function=ElasticDistortion(grid_shape=(28, 28)))
+
+    # Fit model and plot history
+    history = model.fit_generator(datagen.flow(train_x, train_y, batch_size),
+                                  epochs=epochs,
+                                  steps_per_epoch=train_x.shape[0] // batch_size,
+                                  validation_data=(validation_x, validation_y),
+                                  callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
+                                                                     encoder, decoder),
+                                             ReduceLROnPlateau(factor=0.2, verbose=1),
+                                             TensorBoard(log_dir='logs/CVAE')])
+    plot_history(history, have_accuracy=False)
+
+    # Evaluate autoencoder
+    # explore_x = train_x[:5]
+
+    # Visualize auto encoder
+    # show_orig = []
+    # show_output = []
+    # for img in explore_x:
+    #     show_orig.append(img.reshape((28, 28)))
+    #     out_img = decoder.predict(encoder.predict(np.reshape(img, (1, 28, 28, 1))))
+    #     show_output.append(out_img.reshape((28, 28)))
+    #
+    # for i in range(len(show_orig)):
+    #     show_orig[i] = (show_orig[i] + 1) / 2
+    #     show_output[i] = (show_output[i] + 1) / 2
+
+    # show_images(show_orig + show_output, cols=2)
 
 
 def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
