@@ -242,12 +242,8 @@ def evaluate_model(model_path, dataset_path = 'emnist/emnist-balanced-test.csv')
     data_utils.print_confusion_matrix(test_x, test_y, model_path, class_map)
 
 def prepare_classification_model(model):
-    # model.layers.pop()
-    # model.layers.pop()
-    # model.layers.pop()
-    # freeze_model(model)
-    # model.compile(optimizer='adam', metrics=['accuracy'], loss='categorical_crossentropy')
-    featurizer = Model(model.input, model.get_layer(name='fc3').output)
+    # featurizer = Model(model.input, model.get_layer(name='fc3').output)
+    featurizer = model
     freeze_model(featurizer)
     return featurizer
 

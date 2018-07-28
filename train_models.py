@@ -58,10 +58,10 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
 def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
                featurizer_path='best_model_classifier/aug_32.43-0.28.hdf5',
                batch_size=CLASS_BATCH_SIZE,
-               epochs=150,
+               epochs=50,
                model_checkpoint_dir='CVAE_checkpoints_150',
                model_checkpoint_name='CVAE_32_150',
-               limit_gpu_fraction=0.5):
+               limit_gpu_fraction=0.3):
     # Limit GPU memory if not None
     if limit_gpu_fraction is not None:
         _limit_gpu_memory(limit_gpu_fraction)
@@ -82,57 +82,40 @@ def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
     model, encoder, decoder, z_mean, z_log_sigma = get_CVAE_model(feature_vec_gen, print_summary=True)
 
     def vae_loss(y_true, y_pred):
-        y_true_flat = K.flatten(y_true)
-        y_pred_flat = K.flatten(y_pred)
-        recon = K.mean(K.square(y_true_flat - y_pred_flat))
-        kl = 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma)
+        recon = K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+        kl = 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma, axis=-1)
         return recon + kl
 
     def KL_loss(y_true, y_pred):
-        return 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma)
-    #     return 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma, axis=1)
-    #
+        return 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma, axis=-1)
+
     def recon_loss(y_true, y_pred):
-        y_true_flat = K.flatten(y_true)
-        y_pred_flat = K.flatten(y_pred)
-        return K.mean(K.square(y_true_flat - y_pred_flat))
-    #     y_true_flat, y_pred_flat = _remap_y(y_true, y_pred)
-    #     return K.sum(K.binary_crossentropy(y_true_flat, y_pred_flat), axis=-1)
+        return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+
+    # def vae_loss(y_true, y_pred):
+    #     recon = K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+    #     kl = 0.5 * K.sum(K.exp(l_sigma) + K.square(mu) - 1. - l_sigma, axis=-1)
+    #     return recon + kl
+    #
+    # def KL_loss(y_true, y_pred):
+    #     return 0.5 * K.sum(K.exp(l_sigma) + K.square(mu) - 1. - l_sigma, axis=1)
+    #
+    #
+    # def recon_loss(y_true, y_pred):
+    #     return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
 
     model.compile(optimizer='adam', loss=vae_loss, metrics=[KL_loss, recon_loss])
-    # model.compile(optimizer='adam', loss=KL_loss)
-
-    # Create image generator
-    datagen = ImageDataGenerator(shear_range=0.05, rotation_range=5, width_shift_range=0.1,
-                                 preprocessing_function=ElasticDistortion(grid_shape=(28, 28)))
 
     # Fit model and plot history
-    history = model.fit_generator(datagen.flow(train_x, train_y, batch_size),
-                                  epochs=epochs,
-                                  steps_per_epoch=train_x.shape[0] // batch_size,
-                                  validation_data=(validation_x, validation_y),
-                                  callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
-                                                                     encoder, decoder),
-                                             ReduceLROnPlateau(factor=0.2, verbose=1),
-                                             TensorBoard(log_dir='logs/CVAE_mse_150')])
+    history = model.fit(train_x, train_y,
+                        batch_size=batch_size,
+                        epochs=epochs,
+                        validation_data=(validation_x, validation_y),
+                        callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
+                                                           encoder, decoder),
+                                   ReduceLROnPlateau(factor=0.2, verbose=1),
+                                   TensorBoard(log_dir='logs/CVAE_orig')])
     plot_history(history, have_accuracy=False)
-
-    # Evaluate autoencoder
-    # explore_x = train_x[:5]
-
-    # Visualize auto encoder
-    # show_orig = []
-    # show_output = []
-    # for img in explore_x:
-    #     show_orig.append(img.reshape((28, 28)))
-    #     out_img = decoder.predict(encoder.predict(np.reshape(img, (1, 28, 28, 1))))
-    #     show_output.append(out_img.reshape((28, 28)))
-    #
-    # for i in range(len(show_orig)):
-    #     show_orig[i] = (show_orig[i] + 1) / 2
-    #     show_output[i] = (show_output[i] + 1) / 2
-
-    # show_images(show_orig + show_output, cols=2)
 
 
 def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
