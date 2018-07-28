@@ -82,28 +82,28 @@ def _get_CVAE_encoder(feature_vector_generator, input_shape=(28, 28, 1)):
     x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
     # 2x2x8
     encoder = Flatten(name='encoding_layer')(x)
 
@@ -126,25 +126,25 @@ def _get_CVAE_decoder(input_shape=(96,)):
     x = LeakyReLU(0.1)(x)
     x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     x = Deconv2D(16, kernel_size=3, strides=2, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     x = Deconv2D(32, kernel_size=3, strides=2, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     x = Deconv2D(64, kernel_size=3, strides=2, padding='same')(x)
     x = LeakyReLU(0.1)(x)
     x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
     x = LeakyReLU(0.1)(x)
-    x = BatchNormalization()()
+    x = BatchNormalization()(x)
 
     decoded = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh', name='decoding_layer')(x)
     return Model(input_code, decoded)
@@ -242,12 +242,10 @@ def evaluate_model(model_path, dataset_path = 'emnist/emnist-balanced-test.csv')
     data_utils.print_confusion_matrix(test_x, test_y, model_path, class_map)
 
 def prepare_classification_model(model):
-    # model.layers.pop()
-    # model.layers.pop()
-    # model.layers.pop()
-    # freeze_model(model)
-    # model.compile(optimizer='adam', metrics=['accuracy'], loss='categorical_crossentropy')
-    featurizer = Model(model.input, model.get_layer(name='fc3').output)
+    try:
+        featurizer = Model(model.input, model.get_layer(name='fc3').output)
+    except Exception as e:
+        featurizer = model
     freeze_model(featurizer)
     return featurizer
 
