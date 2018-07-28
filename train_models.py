@@ -3,7 +3,6 @@ from data_utils import *
 from sklearn.model_selection import train_test_split
 from keras.callbacks import ModelCheckpoint, ReduceLROnPlateau, TensorBoard
 from keras.preprocessing.image import ImageDataGenerator
-from keras.losses import mse, binary_crossentropy
 import keras.backend as K
 import os
 
@@ -59,9 +58,9 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
 def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
                featurizer_path='best_model_classifier/aug_32.43-0.28.hdf5',
                batch_size=CLASS_BATCH_SIZE,
-               epochs=50,
-               model_checkpoint_dir='CVAE_checkpoints',
-               model_checkpoint_name='CVAE_32',
+               epochs=150,
+               model_checkpoint_dir='CVAE_checkpoints_150',
+               model_checkpoint_name='CVAE_32_150',
                limit_gpu_fraction=0.5):
     # Limit GPU memory if not None
     if limit_gpu_fraction is not None:
@@ -115,7 +114,7 @@ def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
                                   callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
                                                                      encoder, decoder),
                                              ReduceLROnPlateau(factor=0.2, verbose=1),
-                                             TensorBoard(log_dir='logs/CVAE')])
+                                             TensorBoard(log_dir='logs/CVAE_mse_150')])
     plot_history(history, have_accuracy=False)
 
     # Evaluate autoencoder
@@ -224,3 +223,37 @@ def visualize_autoencoder(enc_path, dec_path, data_path='emnist/emnist-balanced-
     show_images(show_orig + show_output, cols=2)
 
 
+def visualize_CVAE(feature_gen_path, dec_path, data_path='emnist/emnist-balanced-train.csv'):
+    # Load raw data, normalize and hot encode
+    raw_train_x, raw_train_y, class_map = load_dataset(data_path)
+    train_x_all, _, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
+
+    # Split data set to train/validation
+    # NOTE: X is input and output this is not mistake
+    train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_x_all,
+                                                                    test_size=0.2, random_state=42)
+    # Evaluate CVAE
+    decoder = load_model(dec_path)
+    feature_vec_gen = load_model(feature_gen_path)
+    feature_vec_gen = prepare_classification_model(feature_vec_gen)
+    explore_x = train_x[:5]
+
+    # Visualize auto encoder
+    show_orig = []
+    show_output = []
+    latent_dim = 64
+    for img in explore_x:
+        c = feature_vec_gen .predict(img.reshape(1, 28, 28, 1))
+        c = c.reshape((-1,))
+        z = np.zeros((64, ))
+        decoder_input = np.reshape(np.concatenate([z, c]), (1, 96))
+        out_img = decoder.predict(decoder_input)
+
+        show_orig.append(img.reshape((28, 28)))
+        show_output.append(out_img.reshape((28, 28)))
+
+    for i in range(len(show_orig)):
+        show_orig[i] = (show_orig[i] + 1) / 2
+        show_output[i] = (show_output[i] + 1) / 2
+
+    show_images(show_orig + show_output, cols=2)
