@@ -1,5 +1,5 @@
 from keras.layers import Conv2D, MaxPool2D, BatchNormalization, Dropout, Dense, Flatten, Input, ELU
-from keras.layers import Deconv2D, Reshape, Concatenate, Lambda
+from keras.layers import Deconv2D, Reshape, Concatenate, Lambda, LeakyReLU
 from keras.models import Model
 import data_utils
 from keras.models import load_model
@@ -78,28 +78,32 @@ def _get_CVAE_encoder(feature_vector_generator, input_shape=(28, 28, 1)):
     x = Reshape(target_shape=(28, 28, 1))(x)
 
     x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
+    x = BatchNormalization()()
 
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
+    x = BatchNormalization()()
 
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
+    x = BatchNormalization()()
 
     x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
+    x = BatchNormalization()()
     # 2x2x8
     encoder = Flatten(name='encoding_layer')(x)
 
@@ -119,24 +123,28 @@ def _get_CVAE_decoder(input_shape=(96,)):
     x = Reshape(target_shape=(2, 2, 8))(x)
 
     x = Deconv2D(8, kernel_size=3, strides=2, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
+    x = BatchNormalization()()
 
     x = Deconv2D(16, kernel_size=3, strides=2, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
+    x = BatchNormalization()()
 
     x = Deconv2D(32, kernel_size=3, strides=2, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
+    x = BatchNormalization()()
 
     x = Deconv2D(64, kernel_size=3, strides=2, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
     x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = LeakyReLU(0.1)(x)
+    x = BatchNormalization()()
 
     decoded = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh', name='decoding_layer')(x)
     return Model(input_code, decoded)
