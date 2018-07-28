@@ -236,24 +236,22 @@ def visualize_CVAE(feature_gen_path, dec_path, data_path='emnist/emnist-balanced
     decoder = load_model(dec_path)
     feature_vec_gen = load_model(feature_gen_path)
     feature_vec_gen = prepare_classification_model(feature_vec_gen)
-    explore_x = train_x[:5]
+    explore_x = train_x[np.random.choice(train_x.shape[0], 1)]
 
-    # Visualize auto encoder
-    show_orig = []
-    show_output = []
+    img_batch = np.reshape(explore_x, (1, 28, 28, 1))
+    imgs = []
+    sides = 2
     latent_dim = 64
-    for img in explore_x:
-        c = feature_vec_gen .predict(img.reshape(1, 28, 28, 1))
-        c = c.reshape((-1,))
-        z = np.zeros((64, ))
-        decoder_input = np.reshape(np.concatenate([z, c]), (1, 96))
-        out_img = decoder.predict(decoder_input)
+    img = (img_batch.reshape((28, 28)) + 1) / 2
+    plt.imshow(img, cmap='gray')
+    plt.show()
+    for x in range(sides):
+        for y in range(sides):
+            c = feature_vec_gen.predict(img_batch)
+            c = c.flatten()
+            z = np.random.randn(latent_dim)
+            out_img_batch = decoder.predict(np.reshape(np.concatenate([z, c]), (1, 96)))
+            out_img = (np.reshape(out_img_batch, (28, 28)) + 1) / 2
+            imgs.append(out_img)
 
-        show_orig.append(img.reshape((28, 28)))
-        show_output.append(out_img.reshape((28, 28)))
-
-    for i in range(len(show_orig)):
-        show_orig[i] = (show_orig[i] + 1) / 2
-        show_output[i] = (show_output[i] + 1) / 2
-
-    show_images(show_orig + show_output, cols=2)
+    show_images(imgs, cols=sides)
