@@ -18,16 +18,69 @@ from __future__ import division
 from __future__ import print_function
 
 from keras.layers import Lambda, Input, Dense, Concatenate, Reshape, Conv2D, MaxPool2D, Flatten, BatchNormalization, Deconv2D
-from keras.models import Model
-from keras.datasets import mnist
-from keras.losses import mse, binary_crossentropy
-from keras.utils import plot_model, to_categorical
+from keras.models import Model, load_model
+from keras.losses import binary_crossentropy
+from keras.utils import to_categorical
 from keras import backend as K
 
 import numpy as np
 import matplotlib.pyplot as plt
 import argparse
 import os
+
+def show_images(images, cols=1, titles=None):
+    assert ((titles is None) or (len(images) == len(titles)))
+    n_images = len(images)
+    if titles is None: titles = ['Image (%d)' % i for i in range(1, n_images + 1)]
+    fig = plt.figure()
+    for n, (image, title) in enumerate(zip(images, titles)):
+        a = fig.add_subplot(cols, np.ceil(n_images / float(cols)), n + 1)
+        if image.ndim == 2:
+            plt.gray()
+        plt.imshow(image)
+        a.set_title(title)
+    fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
+    plt.show()
+
+def prepare_data2(X, Y, M, subtract_mean_img=False):
+    n_class = len(list(M.keys()))
+    X = 2 * (X / 255.) - 1
+    return X, Y, n_class
+
+
+def get_encodings(train_x, train_y_hot, class_map,
+                  feature_gen_path='autoenc_checkpoints/autoenc_32_encoder_33_0.05.hdf5',
+                  decoder_path='autoenc_checkpoints/autoenc_32_decoder_33_0.05.hdf5',
+                  encoding_dim=32,
+                  print_images=True,
+                  featurizer=None):
+
+    # Load feature vector generator and decoder
+    if feature_gen_path is not None:
+        assert featurizer == None, 'Featurizer!'
+        featurizer = load_model(feature_gen_path)
+
+    decoder = load_model(decoder_path)
+    n_class = len(list(class_map.keys()))
+
+    predictions = featurizer.predict(2*train_x.reshape(-1, 28, 28, 1) / 255. - 1)
+    feature_vec_means = np.zeros((n_class, encoding_dim))
+    train_y = np.argmax(train_y_hot, axis=1)
+
+    encodings = np.zeros((train_x.shape[0], encoding_dim))
+    for i in range(n_class):
+        indexes = train_y == i
+        feature_vec = np.mean(predictions[indexes], axis=0)
+        feature_vec_means[i] = feature_vec
+        encodings[indexes] = feature_vec
+
+    if print_images:
+        img_out = []
+        for feature_vec in feature_vec_means:
+            img_out.append(np.reshape(decoder.predict(np.reshape(feature_vec, (1, encoding_dim))), (28, 28)))
+        show_images(img_out, cols=8)
+
+    return encodings
 
 
 # reparameterization trick
@@ -65,7 +118,7 @@ def plot_results(models,
     """
 
     encoder, decoder = models
-    x_test, y_test = data
+    x_test, y_test, enc_test = data
     os.makedirs(model_name, exist_ok=True)
 
     filename = os.path.join(model_name, "vae_mean.png")
@@ -82,7 +135,7 @@ def plot_results(models,
     # plt.savefig(filename)
     # plt.show()
 
-    filename = os.path.join(model_name, "digits_over_latent.png")
+    # filename = os.path.join(model_name, "digits_over_latent.png")
     # display a 30x30 2D manifold of digits
     n = 30
     digit_size = 28
@@ -92,8 +145,8 @@ def plot_results(models,
     grid_x = np.linspace(-4, 4, n)
     grid_y = np.linspace(-4, 4, n)[::-1]
 
-    label = np.zeros((47,))
-    label[28] = 1
+    # label = enc_test[np.random.randint(low=0, high=x_test.shape[0])]
+    label = enc_test[23]
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
             z_sample = np.array([xi, xi, yi, yi])
@@ -141,8 +194,10 @@ def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
     return X, to_categorical(Y), M
 
 x_train, y_train, _ = load_dataset('emnist/emnist-balanced-train.csv')
-x_test, y_test, _ = load_dataset('emnist/emnist-balanced-test.csv')
+x_test, y_test, class_map = load_dataset('emnist/emnist-balanced-test.csv')
 
+enc_train = get_encodings(x_train, y_train, class_map)
+enc_test = get_encodings(x_test, y_test, class_map)
 
 image_size = x_train.shape[1]
 original_dim = image_size * image_size
@@ -157,13 +212,13 @@ x_test = x_test.astype('float32') / 255
 batch_size = 128
 latent_dim = 4
 epochs = 50
-n_classes = y_train.shape[1]
+# n_classes = y_train.shape[1]
 
 # VAE model = encoder + decoder
 # build encoder model
-def get_cvae(input_shape, img_shape):
+def get_cvae(input_shape, img_shape, enc_dim):
     X = Input(shape=input_shape, name='encoder_input')
-    label = Input(shape=(n_classes, ))
+    label = Input(shape=(enc_dim, ))
     inputs = Concatenate()([X, label])
 
     x = Dense(input_shape[0], activation='relu')(inputs)
@@ -206,7 +261,7 @@ def get_cvae(input_shape, img_shape):
     encoder.summary()
 
     # build decoder model
-    latent_inputs = Input(shape=(latent_dim+n_classes,), name='z_sampling')
+    latent_inputs = Input(shape=(latent_dim+enc_dim,), name='z_sampling')
     x = Dense(16, activation='relu')(latent_inputs)
     x = BatchNormalization()(x)
     x = Reshape((4, 4, 1))(x)
@@ -260,9 +315,9 @@ if __name__ == '__main__':
                         help=help_, action='store_true')
     args = parser.parse_args()
 
-    vae, encoder, decoder = get_cvae(input_shape=(784,), img_shape=(28, 28, 1))
+    vae, encoder, decoder = get_cvae(input_shape=(784,), img_shape=(28, 28, 1), enc_dim=32)
     models = (encoder, decoder)
-    data = (x_test, y_test)
+    data = (x_test, y_test, enc_test)
 
     # VAE loss = mse_loss or xent_loss + kl_loss
     # if args.mse:
@@ -273,10 +328,10 @@ if __name__ == '__main__':
         vae = vae.load_weights(args.weights)
     else:
         # train the autoencoder
-        vae.fit([x_train, y_train],
+        vae.fit([x_train, enc_train],
                 epochs=epochs,
                 batch_size=batch_size,
-                validation_data=([x_test, y_test], None))
+                validation_data=([x_test, enc_test], None))
         vae.save_weights('vae_mlp_mnist.h5')
 
     plot_results(models,
