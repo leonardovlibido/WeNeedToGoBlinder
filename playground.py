@@ -1,18 +1,3 @@
-'''Example of VAE on MNIST dataset using MLP
-
-The VAE has a modular design. The encoder, decoder and VAE
-are 3 models that share weights. After training the VAE model,
-the encoder can be used to  generate latent vectors.
-The decoder can be used to generate MNIST digits by sampling the
-latent vector from a Gaussian distribution with mean=0 and std=1.
-
-# Reference
-
-[1] Kingma, Diederik P., and Max Welling.
-"Auto-encoding variational bayes."
-https://arxiv.org/abs/1312.6114
-'''
-
 from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
@@ -22,6 +7,8 @@ from keras.models import Model, load_model
 from keras.losses import binary_crossentropy
 from keras.utils import to_categorical
 from keras import backend as K
+from train_models import AutoencoderCheckpointer
+from keras.callbacks import TensorBoard
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -49,10 +36,12 @@ def prepare_data2(X, Y, M, subtract_mean_img=False):
 
 
 def get_encodings(train_x, train_y_hot, class_map,
-                  feature_gen_path='autoenc_checkpoints/autoenc_32_encoder_33_0.05.hdf5',
-                  decoder_path='autoenc_checkpoints/autoenc_32_decoder_33_0.05.hdf5',
-                  encoding_dim=32,
-                  print_images=True,
+                  # feature_gen_path='autoenc_checkpoints/autoenc_32_encoder_33_0.05.hdf5',
+                  # decoder_path='autoenc_checkpoints/autoenc_32_decoder_33_0.05.hdf5',
+                  feature_gen_path='autoencoder_64/autoenc_64_encoder_49_0.00.hdf5',
+                  decoder_path='autoencoder_64/autoenc_64_decoder_43_0.00.hdf5',
+                  encoding_dim=64,
+                  print_images=False,
                   featurizer=None):
 
     # Load feature vector generator and decoder
@@ -60,10 +49,11 @@ def get_encodings(train_x, train_y_hot, class_map,
         assert featurizer == None, 'Featurizer!'
         featurizer = load_model(feature_gen_path)
 
-    decoder = load_model(decoder_path)
+    # decoder = load_model(decoder_path)
+    # decoder = "not loadable 64 autoenc"
     n_class = len(list(class_map.keys()))
 
-    predictions = featurizer.predict(2*train_x.reshape(-1, 28, 28, 1) / 255. - 1)
+    predictions = featurizer.predict(train_x.reshape(-1, 28, 28, 1) / 255.)
     feature_vec_means = np.zeros((n_class, encoding_dim))
     train_y = np.argmax(train_y_hot, axis=1)
 
@@ -87,26 +77,16 @@ def get_encodings(train_x, train_y_hot, class_map,
 # instead of sampling from Q(z|X), sample eps = N(0,I)
 # z = z_mean + sqrt(var)*eps
 def sampling(args):
-    """Reparameterization trick by sampling fr an isotropic unit Gaussian.
-
-    # Arguments:
-        args (tensor): mean and log of variance of Q(z|X)
-
-    # Returns:
-        z (tensor): sampled latent vector
-    """
-
     z_mean, z_log_var = args
     batch = K.shape(z_mean)[0]
     dim = K.int_shape(z_mean)[1]
-    # by default, random_normal has mean=0 and std=1.0
     epsilon = K.random_normal(shape=(batch, dim))
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
 
 def plot_results(models,
                  data,
-                 batch_size=128,
+                 class_map,
                  model_name="vae_mnist"):
     """Plots labels and MNIST digits as function of 2-dim latent vector
 
@@ -145,8 +125,10 @@ def plot_results(models,
     grid_x = np.linspace(-4, 4, n)
     grid_y = np.linspace(-4, 4, n)[::-1]
 
-    # label = enc_test[np.random.randint(low=0, high=x_test.shape[0])]
-    label = enc_test[23]
+    idx = np.random.randint(low=0, high=x_test.shape[0])
+    label = enc_test[idx]
+    print(class_map[np.argmax(y_test[idx])])
+
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
             z_sample = np.array([xi, xi, yi, yi])
@@ -291,7 +273,7 @@ def get_cvae(input_shape, img_shape, enc_dim):
 
     # instantiate VAE model
     outputs = decoder(encoder([X, label])[2])
-    vae = Model([X, label], outputs, name='vae_mlp')
+    cvae = Model([X, label], outputs, name='cvae_64')
 
     # vae loss
     reconstruction_loss = binary_crossentropy(X, outputs)
@@ -299,11 +281,11 @@ def get_cvae(input_shape, img_shape, enc_dim):
     kl_loss = 1 + z_log_var - K.square(z_mean) - K.exp(z_log_var)
     kl_loss = K.sum(kl_loss, axis=-1)
     kl_loss *= -0.5
-    vae_loss = K.mean(reconstruction_loss + kl_loss)
-    vae.add_loss(vae_loss)
-    vae.compile(optimizer='adam')
-    vae.summary()
-    return vae, encoder, decoder
+    cvae_loss = K.mean(reconstruction_loss + kl_loss)
+    cvae.add_loss(cvae_loss)
+    cvae.compile(optimizer='adam')
+    cvae.summary()
+    return cvae, encoder, decoder
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -315,7 +297,7 @@ if __name__ == '__main__':
                         help=help_, action='store_true')
     args = parser.parse_args()
 
-    vae, encoder, decoder = get_cvae(input_shape=(784,), img_shape=(28, 28, 1), enc_dim=32)
+    cvae, encoder, decoder = get_cvae(input_shape=(784,), img_shape=(28, 28, 1), enc_dim=64)
     models = (encoder, decoder)
     data = (x_test, y_test, enc_test)
 
@@ -325,16 +307,18 @@ if __name__ == '__main__':
     # else:
 
     if args.weights:
-        vae = vae.load_weights(args.weights)
+        decoder = load_model(args.weights)
+        models = (None, decoder)
     else:
         # train the autoencoder
-        vae.fit([x_train, enc_train],
-                epochs=epochs,
-                batch_size=batch_size,
-                validation_data=([x_test, enc_test], None))
-        vae.save_weights('vae_mlp_mnist.h5')
+        cvae.fit([x_train, enc_train],
+                 epochs=epochs,
+                 batch_size=batch_size,
+                 validation_data=([x_test, enc_test], None),
+                 callbacks=[AutoencoderCheckpointer('cvae_64', 'cvae_64', encoder, decoder),
+                            TensorBoard('logs/cvae_64')])
 
     plot_results(models,
                  data,
-                 batch_size=batch_size,
-                 model_name="vae_mlp")
+                 class_map,
+                 model_name='cvae_64')
