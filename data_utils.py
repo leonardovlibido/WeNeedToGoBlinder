@@ -29,7 +29,8 @@ def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
         reader = csv.reader(csv_file)
         for idx, row in enumerate(reader):
             Y.append(int(row[0]))
-            X.append(np.transpose(np.reshape(np.array(row[1:], np.float32), (28, 28, 1)), [1, 0, 2]))
+            img = np.transpose(np.reshape(np.array(row[1:], np.float32), (28, 28)), [1, 0])
+            X.append(img.flatten())
     X = np.array(X)
     Y = np.array(Y)
 
@@ -40,11 +41,16 @@ def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
     return X, Y, M
 
 
-def prepare_data(X, Y, M, subtract_mean_img=False):
+def prepare_data(X, Y, M, target_activation='sigmoid', subtract_mean_img=False):
     n_class = len(list(M.keys()))
-    X = X / 255.
+    if target_activation == 'sigmoid':
+        X = X / 255.
+    elif target_activation == 'tanh':
+        X = 2 * (X / 255.) - 1
+    else:
+        raise ValueError('Target layer activations supported are sigmoid [0, 1] and tanh [-1, 1].')
     Y = to_categorical(Y, n_class)
-    return np.reshape(X, (X.shape[0], X.shape[1] * X.shape[2])), Y, n_class
+    return X, Y, n_class
 
 
 def explore_dataset(X, Y, M, n_data, n_samples=5):

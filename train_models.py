@@ -55,67 +55,59 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
     plot_history(history)
 
 
-def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
-               featurizer_path='best_model_classifier/aug_32.43-0.28.hdf5',
-               batch_size=CLASS_BATCH_SIZE,
-               epochs=50,
-               model_checkpoint_dir='CVAE_checkpoints_150',
-               model_checkpoint_name='CVAE_32_150',
-               limit_gpu_fraction=0.3):
-    # Limit GPU memory if not None
-    if limit_gpu_fraction is not None:
-        _limit_gpu_memory(limit_gpu_fraction)
+def cvae_train(data_path,
+               featurizer_path,
+               model_name,
+               reconstruction,
+               batch_size,
+               epochs,
+               limit_gpu_fraction,
+               latent_dim=4):
+    # Notify user what are we training
+    config = {'data_path': data_path, 'featurizer_path': featurizer_path, 'model_name': model_name,
+              'reconstruction': reconstruction, 'batch_size': batch_size, 'epochs': epochs,
+              'limit_gpu_fraction': limit_gpu_fraction, 'latent_dim': latent_dim}
 
-    # Load raw data, normalize and hot encode
-    raw_train_x, raw_train_y, class_map = load_dataset(data_path)
-    train_x_all, _, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
 
-    # Split data set to train/validation
-    # NOTE: X is input and output this is not mistake
-    train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_x_all,
-                                                                    test_size=0.2, random_state=42)
+    # Limit GPU memory
+    _limit_gpu_memory(limit_gpu_fraction)
 
-    # Get model for classification and compile it
-    feature_vec_gen = load_model(featurizer_path)
-    feature_vec_gen = prepare_classification_model(feature_vec_gen)
+    # Load data
+    x_train, y_train, class_map = load_dataset(data_path)
+    x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
+    condition_train = cvae_get_encodings(x_train, y_train, n_class, featurizer_path=featurizer_path)
 
-    model, encoder, decoder, z_mean, z_log_sigma = get_CVAE_model(feature_vec_gen, print_summary=True)
+    # Split data
+    validation_split = 0.2
+    validation_start_idx = int((1 - validation_split) * x_train.shape[0])
+    np.random.seed(42)
+    random_idxs = np.random.permutation(x_train.shape[0])
 
-    def vae_loss(y_true, y_pred):
-        recon = K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
-        kl = 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma, axis=-1)
-        return recon + kl
+    x_validate = x_train[random_idxs[validation_start_idx:]]
+    condition_validate = condition_train[random_idxs[validation_start_idx:]]
+    y_validate = y_train[random_idxs[validation_start_idx:]]
+    x_train = x_train[random_idxs[:validation_start_idx]]
+    condition_train = condition_train[random_idxs[:validation_start_idx]]
+    y_train = y_train[random_idxs[validation_start_idx:]]
 
-    def KL_loss(y_true, y_pred):
-        return 0.5 * K.sum(K.exp(z_log_sigma) + K.square(z_mean) - 1. - z_log_sigma, axis=-1)
+    # Get cvae
+    cvae, encoder, decoder = get_cvae((784, ), (28, 28, 1),
+                                      condition_train.shape[1],
+                                      latent_dim=latent_dim,
+                                      reconstruction=reconstruction)
 
-    def recon_loss(y_true, y_pred):
-        return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+    # Run training
+    cvae.fit([x_train, condition_train],
+             epochs=epochs,
+             batch_size=batch_size,
+             validation_data=([x_validate, condition_validate], None),
+             callbacks=[AutoencoderCheckpointer(model_name, model_name,
+                                                encoder, decoder, config),
+                        TensorBoard(os.path.join('logs', model_name))])
 
-    # def vae_loss(y_true, y_pred):
-    #     recon = K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
-    #     kl = 0.5 * K.sum(K.exp(l_sigma) + K.square(mu) - 1. - l_sigma, axis=-1)
-    #     return recon + kl
-    #
-    # def KL_loss(y_true, y_pred):
-    #     return 0.5 * K.sum(K.exp(l_sigma) + K.square(mu) - 1. - l_sigma, axis=1)
-    #
-    #
-    # def recon_loss(y_true, y_pred):
-    #     return K.sum(K.binary_crossentropy(y_true, y_pred), axis=-1)
+    # Plot training
+    cvae_plot_results((encoder, decoder), (x_validate, y_validate, condition_validate), class_map)
 
-    model.compile(optimizer='adam', loss=vae_loss, metrics=[KL_loss, recon_loss])
-
-    # Fit model and plot history
-    history = model.fit(train_x, train_y,
-                        batch_size=batch_size,
-                        epochs=epochs,
-                        validation_data=(validation_x, validation_y),
-                        callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
-                                                           encoder, decoder),
-                                   ReduceLROnPlateau(factor=0.2, verbose=1),
-                                   TensorBoard(log_dir='logs/CVAE_orig')])
-    plot_history(history, have_accuracy=False)
 
 
 def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',

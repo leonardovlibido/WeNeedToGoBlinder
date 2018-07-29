@@ -1,17 +1,38 @@
 from train_models import *
+import argparse
 
 def main():
-    # classifier_train()
-    # autoencoder_train()
-    # visualize_autoencoder(enc_path='autoenc_checkpoints/autoenc_32_encoder_1_0.11.hdf5',
-    #                       dec_path='autoenc_checkpoints/autoenc_32_decoder_1_0.11.hdf5')
-    CVAE_train(model_checkpoint_name='CVAE_orig',
-               model_checkpoint_dir='CVAE_orig',
-               featurizer_path='autoenc_checkpoints/autoenc_32_encoder_33_0.05.hdf5')
-    # visualize_CVAE(feature_gen_path='best_model_classifier/aug_32.43-0.28.hdf5',
-    #                dec_path='CVAE_checkpoints_crossentropy/CVAE_32_decoder_49_0.29.hdf5')
-                   # dec_path='CVAE_checkpoints\CVAE_32_decoder_48_0.24.hdf5')
-                   # dec_path='CVAE_checkpoints_150\CVAE_32_150_decoder_149_0.24.hdf5')
+    parser = argparse.ArgumentParser()
+
+    help_ = "Use cases"
+    parser.add_argument("-uc", "--use_case", help=help_)
+
+    help_ = "Path to dataset"
+    parser.add_argument("-dp", "--data_path", help=help_, default='emnist/emnist-balanced-train.csv')
+
+    help_ = "Featurizer path"
+    parser.add_argument("-featp", "--featurizer_path", help=help_,
+                        default='autoencoder_64/autoenc_64_encoder_49_0.00.hdf5')
+
+    help_ = "CVAE model name"
+    parser.add_argument("-mname", "--model_name", help=help_, default='cvae')
+
+    help_ = "Reconstruction loss (binary_crossentropy or mse)"
+    parser.add_argument("-rl", "--reconstruction", help=help_, default='binary_crossentropy')
+
+    help_ = "Batch size"
+    parser.add_argument("-bs", "--batch_size", help=help_, default=64)
+
+    help_ = "Number of epochs"
+    parser.add_argument("-en", "--epochs", help=help_, default=100)
+
+    help_ = "Limit GPU fraction"
+    parser.add_argument("-lgpu", "--limit_gpu_fraction", help=help_, default=0.375)
+
+    args = parser.parse_args()
+    if args.use_case == 'train_cvae':
+        cvae_train(args.data_path, args.featurizer_path, args.model_name, args.reconstruction, int(args.batch_size),
+                   int(args.epochs), float(args.limit_gpu_fraction))
 
 
 if __name__ == "__main__":

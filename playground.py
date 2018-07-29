@@ -294,7 +294,7 @@ if __name__ == '__main__':
     help_ = "Use mse loss instead of binary cross entropy (default)"
     parser.add_argument("-m",
                         "--mse",
-                        help=help_, action='store_true')
+                        help=help_)
     args = parser.parse_args()
 
     cvae, encoder, decoder = get_cvae(input_shape=(784,), img_shape=(28, 28, 1), enc_dim=64)
