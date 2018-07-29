@@ -201,51 +201,46 @@ def get_cvae(input_shape, img_shape, condition_dim,
         cvae.summary()
     return cvae, encoder, decoder
 
-def cvae_plot_results(models,
-                      data,
-                      class_map,
-                      model_name='cvae'):
 
+def _cvae_plot_grid(models,
+                    data,
+                    class_map,
+                    model_base_path,
+                    model_name,
+                    latent_dim,
+                    axes):
+    # Get models, axes and data
     encoder, decoder = models
-    x_validation, y_validation, condition_validation = data
-    os.makedirs(model_name, exist_ok=True)
+    x_validate, y_validate, condition_validate = data
 
-    filename = os.path.join(model_name, model_name+'.png')
-    # display a 2D plot of the digit classes in the latent space
-    # z_mean, _, _ = encoder.predict([x_test, y_test],
-    #                                batch_size=batch_size)
-    # print(z_mean[:10])
-    # plt.figure(figsize=(12, 10))
-    # colors = np.argmax(y_test)
-    # plt.scatter(z_mean[:, 0], z_mean[:, 1], c=colors.tolist())
-    # plt.colorbar()
-    # plt.xlabel("z[0]")
-    # plt.ylabel("z[1]")
-    # plt.savefig(filename)
-    # plt.show()
-
-    # filename = os.path.join(model_name, "digits_over_latent.png")
-    # display a 30x30 2D manifold of digits
+    # Figure params
     n = 30
     digit_size = 28
     figure = np.zeros((digit_size * n, digit_size * n))
-    # linearly spaced coordinates corresponding to the 2D plot
-    # of digit classes in the latent space
-    grid_x = np.linspace(-4, 4, n)
-    grid_y = np.linspace(-4, 4, n)[::-1]
 
-    idx = np.random.randint(low=0, high=x_validation.shape[0])
-    label = condition_validation[idx]
-    print(class_map[np.argmax(y_validation[idx])])
+    # Create grid
+    grid_x = np.linspace(-3, 3, n)
+    grid_y = np.linspace(-3, 3, n)[::-1]
+
+    # Get random feature vector
+    np.random.seed()
+    idx = np.random.randint(low=0, high=x_validate.shape[0])
+    label = condition_validate[idx]
+    alphanum = class_map[np.argmax(y_validate[idx])]
 
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
-            z_sample = np.array([xi, xi, yi, yi])
+            if axes is not None:
+                z_sample = np.zeros((latent_dim,))
+                z_sample[axes[0]] = xi
+                z_sample[axes[1]] = yi
+            else:
+                z_sample = np.random.rand(latent_dim)
             decoder_in = np.hstack((z_sample, label))
             x_decoded = decoder.predict(np.array([decoder_in]))
             digit = x_decoded[0].reshape(digit_size, digit_size)
             figure[i * digit_size: (i + 1) * digit_size,
-                   j * digit_size: (j + 1) * digit_size] = digit
+            j * digit_size: (j + 1) * digit_size] = digit
 
     plt.figure(figsize=(10, 10))
     start_range = digit_size // 2
@@ -255,11 +250,34 @@ def cvae_plot_results(models,
     sample_range_y = np.round(grid_y, 1)
     plt.xticks(pixel_range, sample_range_x)
     plt.yticks(pixel_range, sample_range_y)
-    plt.xlabel("z[0]")
-    plt.ylabel("z[1]")
-    plt.imshow(figure, cmap='Greys_r')
-    plt.savefig(filename)
-    plt.show()
+    if axes is not None:
+        plt.xlabel("z axe" + str(axes[0]))
+        plt.ylabel("z axe" + str(axes[1]))
+        plt.imshow(figure, cmap='Greys_r')
+        plt.savefig(os.path.join(model_base_path,
+                                 model_name + '_' + alphanum + '_' + str(axes[0]) + '_' + str(axes[1]) + '.png'))
+    else:
+        plt.xlabel("z axe random normal")
+        plt.ylabel("z axe random normal")
+        plt.imshow(figure, cmap='Greys_r')
+        plt.savefig(os.path.join(model_base_path,
+                                 model_name + '_' + alphanum + '_' + 'random normal' + '.png'))
+
+
+def cvae_plot_results(models,
+                      data,
+                      class_map,
+                      model_base_path,
+                      model_name,
+                      latent_dim):
+    # Axes indexes
+    for axe0 in range(latent_dim):
+        for axe1 in range(axe0+1, latent_dim):
+            _cvae_plot_grid(models, data, class_map, model_base_path, model_name, latent_dim, (axe0, axe1))
+
+    # Random non-grid
+    _cvae_plot_grid(models, data, class_map, model_base_path, model_name, latent_dim, None)
+
 
 
 def _get_encoder(input_shape=(28, 28, 1)):
