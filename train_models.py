@@ -104,7 +104,7 @@ def cvae_train(data_path,
              validation_data=([x_validate, condition_validate], None),
              callbacks=[AutoencoderCheckpointer(model_base_path, model_name,
                                                 encoder, decoder, config),
-                        TensorBoard(os.path.join('logs', model_base_path))])
+                        TensorBoard(os.path.join('logs', model_name))])
 
     # Plot training
     cvae_plot_results((encoder, decoder), (x_validate, y_validate, condition_validate), class_map, model_base_path,
