@@ -138,9 +138,9 @@ def CVAE_train(data_path='emnist/emnist-balanced-train.csv',
 def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                       batch_size=CLASS_BATCH_SIZE,
                       epochs=50,
-                      model_checkpoint_dir='autoenc_checkpoints',
-                      model_checkpoint_name='autoenc_32',
-                      limit_gpu_fraction=0.3):
+                      model_checkpoint_dir='autoenc_64',
+                      model_checkpoint_name='autoenc_64',
+                      limit_gpu_fraction=None):
     # Limit GPU memory if not None
     if limit_gpu_fraction is not None:
         _limit_gpu_memory(limit_gpu_fraction)
@@ -155,25 +155,25 @@ def autoencoder_train(data_path='emnist/emnist-balanced-train.csv',
                                                                     test_size=0.2, random_state=42)
 
     # Get model for classification and compile it
-    model, encoder, decoder = get_autoencoder_model()
+    model, encoder, decoder = get_autoencoder_model(print_summary=True)
     model.compile(optimizer='adam', loss='mse')
 
     # Create image generator
-    datagen = ImageDataGenerator(shear_range=0.05, rotation_range=5, width_shift_range=0.1,
-                                 preprocessing_function=ElasticDistortion(grid_shape=(28, 28)))
+    # datagen = ImageDataGenerator(shear_range=0.05, rotation_range=5, width_shift_range=0.1,
+    #                              preprocessing_function=ElasticDistortion(grid_shape=(28, 28)))
 
     # Fit model and plot history
     checkpoint_path = os.path.join(model_checkpoint_dir, model_checkpoint_name + '.{epoch:02d}-{val_loss:.2f}.hdf5')
-    history = model.fit_generator(datagen.flow(train_x, train_y, batch_size),
-                                  epochs=epochs,
-                                  steps_per_epoch=train_x.shape[0] // batch_size,
-                                  validation_data=(validation_x, validation_y),
-                                  callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
-                                                                     encoder, decoder),
-                                      # ModelCheckpoint(save_best_only=True,
-                                      #                        filepath=checkpoint_path),
-                                             ReduceLROnPlateau(factor=0.2, verbose=1),
-                                             TensorBoard(log_dir='logs/autoencoder')])
+    history = model.fit(train_x, train_y,
+                        batch_size=batch_size,
+                        epochs=epochs,
+                        validation_data=(validation_x, validation_y),
+                        callbacks=[AutoencoderCheckpointer(model_checkpoint_dir, model_checkpoint_name,
+                                                           encoder, decoder),
+                                   ModelCheckpoint(save_best_only=True,
+                                                   filepath=checkpoint_path),
+                                   ReduceLROnPlateau(factor=0.2, verbose=1),
+                                   TensorBoard(log_dir='logs/autoencoder_64')])
     plot_history(history, have_accuracy=False)
 
     # Evaluate autoencoder

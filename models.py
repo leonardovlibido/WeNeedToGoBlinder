@@ -161,66 +161,75 @@ def sampling(args):
 def _get_encoder(input_shape=(28, 28, 1)):
     input_img = Input(shape=input_shape, name='encoder_input')
 
-    x = Conv2D(64, kernel_size=3, strides=1, padding='same')(input_img)
+    x = Conv2D(128, kernel_size=3, strides=1, padding='same')(input_img)
+    x = ELU()(x)
+    x = Conv2D(128, kernel_size=3, strides=1, padding='same')(x)
+    x = ELU()(x)
+    x = BatchNormalization()(x)
+    x = MaxPool2D(pool_size=2, padding='same')(x)
+
+    x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
     x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
+    x = BatchNormalization()(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
 
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
+    x = BatchNormalization()(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
 
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
     x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
-    x = MaxPool2D(pool_size=2, padding='same')(x)
-
-    x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
-    x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
-    x = ELU()(x)
+    x = BatchNormalization()(x)
     x = MaxPool2D(pool_size=2, padding='same')(x)
     # 2x2x8
     encoder = Flatten(name='encoding_layer')(x)
     return Model(input_img, encoder)
 
-def _get_decoder(input_shape=(32,)):
+def _get_decoder(input_shape=(64,)):
     input_code = Input(input_shape, name='decoder_input')
-    x = Reshape(target_shape=(2, 2, 8))(input_code)
+    x = Reshape(target_shape=(2, 2, 16))(input_code)
 
-    x = Deconv2D(8, kernel_size=3, strides=2, padding='same')(x)
+    x = Deconv2D(128, kernel_size=3, strides=2, padding='same')(x)
     x = ELU()(x)
-    x = Conv2D(8, kernel_size=3, strides=1, padding='same')(x)
+    x = Conv2D(128, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
+    x = BatchNormalization()(x)
 
-    x = Deconv2D(16, kernel_size=3, strides=2, padding='same')(x)
+    x = Deconv2D(64, kernel_size=3, strides=2, padding='same')(x)
     x = ELU()(x)
-    x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
+    x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
+    x = BatchNormalization()(x)
 
     x = Deconv2D(32, kernel_size=3, strides=2, padding='same')(x)
     x = ELU()(x)
     x = Conv2D(32, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
 
-    x = Deconv2D(64, kernel_size=3, strides=2, padding='same')(x)
+    x = Deconv2D(16, kernel_size=3, strides=2, padding='same')(x)
     x = ELU()(x)
-    x = Conv2D(64, kernel_size=3, strides=1, padding='same')(x)
+    x = Conv2D(16, kernel_size=3, strides=1, padding='same')(x)
     x = ELU()(x)
+    x = BatchNormalization()(x)
 
-    decoder = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='tanh', name='decoding_layer')(x)
+    decoder = Conv2D(1, kernel_size=5, strides=1, padding='valid', activation='sigmoid', name='decoding_layer')(x)
     return Model(input_code, decoder)
 
 def get_autoencoder_model(input_shape=(28, 28, 1), print_summary=False):
-    x = Input(shape=(28, 28, 1))
+    x = Input(shape=input_shape)
     encoder = _get_encoder()
     decoder = _get_decoder()
     model = Model(x, decoder(encoder(x)))
     if print_summary:
+        encoder.summary()
+        decoder.summary()
         model.summary()
     return model, encoder, decoder
 

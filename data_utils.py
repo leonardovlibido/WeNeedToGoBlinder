@@ -42,7 +42,7 @@ def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
 
 def prepare_data(X, Y, M, subtract_mean_img=False):
 	n_class = len(list(M.keys()))
-	X = 2 * (X / 255.) - 1
+	X = X / 255.
 	Y = to_categorical(Y, n_class)
 	return X, Y, n_class
 
