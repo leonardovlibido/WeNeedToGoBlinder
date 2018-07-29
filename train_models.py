@@ -64,6 +64,7 @@ def cvae_train(data_path,
                limit_gpu_fraction,
                latent_dim=4):
     # Notify user what are we training
+    model_name = os.path.join(os.path.join('models', 'cvae'), model_name)
     config = {'data_path': data_path, 'featurizer_path': featurizer_path, 'model_name': model_name,
               'reconstruction': reconstruction, 'batch_size': batch_size, 'epochs': epochs,
               'limit_gpu_fraction': limit_gpu_fraction, 'latent_dim': latent_dim}
@@ -101,7 +102,7 @@ def cvae_train(data_path,
              epochs=epochs,
              batch_size=batch_size,
              validation_data=([x_validate, condition_validate], None),
-             callbacks=[AutoencoderCheckpointer(model_name, model_name,
+             callbacks=[AutoencoderCheckpointer(model_name, os.path.basename(model_name),
                                                 encoder, decoder, config),
                         TensorBoard(os.path.join('logs', model_name))])
 

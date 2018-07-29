@@ -12,7 +12,7 @@ def main():
 
     help_ = "Featurizer path"
     parser.add_argument("-featp", "--featurizer_path", help=help_,
-                        default='autoencoder_64/autoenc_64_encoder_49_0.00.hdf5')
+                        default='models/autoencoder/autoencoder_64/autoenc_64_encoder_49_0.00.hdf5')
 
     help_ = "CVAE model name"
     parser.add_argument("-mname", "--model_name", help=help_, default='cvae')
