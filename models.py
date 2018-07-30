@@ -122,6 +122,15 @@ def get_means(predictions, train_y, n_class, encodings, feature_vec_means):
         feature_vec = np.mean(predictions[indexes], axis=0)
         encodings[indexes] = feature_vec
 
+    sanity_dict = {}
+    for sample_idx in range(train_y.shape[0]):
+        key = train_y[sample_idx]
+        vec = encodings[sample_idx]
+
+        if key in sanity_dict.keys():
+            assert np.array_equal(sanity_dict[key], vec), 'Encodings missmatch ' + str(key)
+        else:
+            sanity_dict[key] = vec
     return encodings
 
 def get_min_cosine_distance(predictions, train_y, n_class, encodings, feature_vectors):
@@ -133,6 +142,15 @@ def get_min_cosine_distance(predictions, train_y, n_class, encodings, feature_ve
         best_vec = feature_vec_class_i[np.argmax(np.sum(normalized_vectors@normalized_vectors.T, axis=0).flatten())]
         encodings[indexes] = best_vec
 
+    sanity_dict = {}
+    for sample_idx in range(train_y.shape[0]):
+        key = train_y[sample_idx]
+        vec = encodings[sample_idx]
+
+        if key in sanity_dict.keys():
+            assert np.array_equal(sanity_dict[key], vec), 'Encodings missmatch ' + str(key)
+        else:
+            sanity_dict[key] = vec
     return encodings
 
 def get_min_square_distance(predictions, train_y, n_class, encodings, feature_vectors):
@@ -145,6 +163,15 @@ def get_min_square_distance(predictions, train_y, n_class, encodings, feature_ve
         best_vec = feature_vec_class_i[np.argmin(squared_dist_sum)]
         encodings[indexes] = best_vec
 
+    sanity_dict = {}
+    for sample_idx in range(train_y.shape[0]):
+        key = train_y[sample_idx]
+        vec = encodings[sample_idx]
+
+        if key in sanity_dict.keys():
+            assert np.array_equal(sanity_dict[key], vec), 'Encodings missmatch ' + str(key)
+        else:
+            sanity_dict[key] = vec
     return encodings
 
 
@@ -263,12 +290,18 @@ def _cvae_plot_grid(models,
 
     # Get random feature vector
     if class_idx is not None:
-        idx = class_idx
+        y_not_hot = np.argmax(y_validate, axis=1)
+        indexes = y_not_hot == class_idx
+        conditions_for_class = condition_validate[indexes]
+        label = conditions_for_class[0]
+        alphanum = class_map[class_idx]
     else:
         np.random.seed()
         idx = np.random.randint(low=0, high=x_validate.shape[0])
-    label = condition_validate[idx]
-    alphanum = class_map[np.argmax(y_validate[idx])]
+        label = condition_validate[idx]
+        class_idx = np.argmax(y_validate[idx])
+        alphanum = class_map[class_idx]
+
     for i, yi in enumerate(grid_y):
         for j, xi in enumerate(grid_x):
             if axes is not None:
@@ -302,7 +335,7 @@ def _cvae_plot_grid(models,
         plt.ylabel("z axe random normal")
         plt.imshow(figure, cmap='Greys_r')
         plt.savefig(os.path.join(model_base_path,
-                                 model_name + '_' + alphanum + '_' + 'random normal' + '.png'))
+                                 model_name + '_' + alphanum + '_' + str(class_idx) + '.png'))
 
 
 def cvae_plot_results(models,
@@ -310,8 +343,7 @@ def cvae_plot_results(models,
                       class_map,
                       model_base_path,
                       model_name,
-                      latent_dim,
-                      visualize_originals=False):
+                      latent_dim):
     # Check model base path
     if not os.path.exists(model_base_path):
         print('Creating directory for visualizations: ' + model_base_path)
@@ -323,19 +355,8 @@ def cvae_plot_results(models,
             _cvae_plot_grid(models, data, class_map, model_base_path, model_name, latent_dim, (axe0, axe1))
 
     # Random non-grid
-    for idx in range(len(class_map)):
+    for idx in range(len(list(class_map.keys()))):
         _cvae_plot_grid(models, data, class_map, model_base_path, model_name, latent_dim, None, class_idx=idx)
-        if visualize_originals:
-            x_validate, y_validate, condition_validate = data
-
-            class_label = class_map[np.argmax(y_validate[idx])]
-            sample = x_validate[idx]
-            fig = plt.figure()
-            plt.imshow(np.reshape(sample, (28, 28)), cmap='Greys_r')
-            plt.savefig(os.path.join(model_base_path,
-                                 model_name + '_' + class_label + '_' + 'orig' + '.png'))
-            plt.close(fig)
-
 
 
 

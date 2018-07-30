@@ -79,18 +79,9 @@ def cvae_train(data_path,
     x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
     condition_train = cvae_get_encodings(x_train, y_train, n_class, encoding_type, featurizer_path=featurizer_path)
 
-    # Split data
-    validation_split = 0.2
-    validation_start_idx = int((1 - validation_split) * x_train.shape[0])
-    np.random.seed(42)
-    random_idxs = np.random.permutation(x_train.shape[0])
-
-    x_validate = x_train[random_idxs[validation_start_idx:]]
-    condition_validate = condition_train[random_idxs[validation_start_idx:]]
-    y_validate = y_train[random_idxs[validation_start_idx:]]
-    x_train = x_train[random_idxs[:validation_start_idx]]
-    condition_train = condition_train[random_idxs[:validation_start_idx]]
-    y_train = y_train[random_idxs[validation_start_idx:]]
+    x_test, y_test, _ = load_dataset('emnist/emnist-balanced-test.csv')
+    x_test, y_test, _ = prepare_data(x_test, y_test, class_map)
+    condition_test = cvae_get_encodings(x_test, y_test, n_class, encoding_type, featurizer_path=featurizer_path)
 
     # Get cvae
     cvae, encoder, decoder = get_cvae((784, ), (28, 28, 1),
@@ -102,14 +93,14 @@ def cvae_train(data_path,
     cvae.fit([x_train, condition_train],
              epochs=epochs,
              batch_size=batch_size,
-             validation_data=([x_validate, condition_validate], None),
+             validation_data=([x_test, condition_test], None),
              callbacks=[AutoencoderCheckpointer(model_base_path, model_name,
                                                 encoder, decoder, config),
                         ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10),
                         TensorBoard(os.path.join('logs', model_name))])
 
     # Plot training
-    cvae_plot_results((encoder, decoder), (x_validate, y_validate, condition_validate), class_map, model_base_path,
+    cvae_plot_results((encoder, decoder), (x_test, y_test, condition_test), class_map, model_base_path,
                       model_name, latent_dim)
 
 
