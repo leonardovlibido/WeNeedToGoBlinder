@@ -204,7 +204,7 @@ def visualize_autoencoder(enc_path, dec_path, data_path='emnist/emnist-balanced-
 
 def cvae_visualize(data_path, featurizer_path, cvae_decoder_path):
     # Load data
-    x_train, y_train, class_map = load_dataset(data_path, mpath=None)
+    x_train, y_train, class_map = load_dataset(data_path)
     x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
 
     # Load models
@@ -227,12 +227,9 @@ def cvae_visualize(data_path, featurizer_path, cvae_decoder_path):
     # Form dataset
     x_samples = np.array(x_samples)
     y_samples = np.array(y_samples)
-    condition_samples = featurizer.predict(x_samples)
+    condition_samples = featurizer.predict(np.reshape(x_samples, (-1, 28, 28, 1)))
 
     # Call visualization
-    # model_base_path,
-    # model_name,
-    # latent_dim
     decoder_fname = os.path.basename(cvae_decoder_path)
     decoder_parts = decoder_fname.split('_')
     model_name = ''
@@ -245,5 +242,33 @@ def cvae_visualize(data_path, featurizer_path, cvae_decoder_path):
         else:
             model_name = model_name + '_' + part
 
-    cvae_plot_results((None, decoder), (x_samples, y_samples, condition_samples), class_map,
-                      os.path.join('visualizations', model_name), model_name, 4)
+    # Check model base path
+    model_base_path = os.path.join('visualizations', model_name)
+    if not os.path.exists(model_base_path):
+        print('Creating directory for visualizations: ' + model_base_path)
+        os.makedirs(model_base_path)
+
+    # Plot originals
+    for idx in range(n_class):
+        # Get class label and sample
+        sample = x_samples[idx]
+        condition = condition_samples[idx]
+
+        # Plot original
+        fig = plt.figure()
+        plt.imshow(np.reshape(sample, (28, 28)), cmap='Greys_r')
+        plt.savefig(os.path.join(model_base_path,
+                             model_name + '_' + str(idx) + '_' + 'orig' + '.png'))
+        plt.close(fig)
+
+        # Get generated
+        latent_dim = 4
+        decoder_in = np.hstack((np.zeros((latent_dim, )), condition))
+        sample_generated = decoder.predict(np.array([decoder_in]))
+
+        # Plot generated
+        fig = plt.figure()
+        plt.imshow(np.reshape(sample_generated, (28, 28)), cmap='Greys_r')
+        plt.savefig(os.path.join(model_base_path,
+                                 model_name + '_' + str(idx) + '_' + 'gen' + '.png'))
+        plt.close(fig)

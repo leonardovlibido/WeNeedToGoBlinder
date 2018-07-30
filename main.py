@@ -32,11 +32,16 @@ def main():
     help_ = "Limit GPU fraction"
     parser.add_argument("-lgpu", "--limit_gpu_fraction", help=help_, default=0.375)
 
+    help_ = "CVAE decoder path"
+    parser.add_argument("-cvaedp", "--cvae_decoder_path", help=help_, default=None)
+
     args = parser.parse_args()
     if args.use_case == 'train_cvae':
         cvae_train(args.data_path, args.featurizer_path, args.model_name, args.reconstruction, args.encoding_type,
                    int(args.batch_size), int(args.epochs), float(args.limit_gpu_fraction))
     elif args.use_case == 'visualize_cvae':
+        if args.cvae_decoder_path is None:
+            raise ValueError('Must set cvae_decoder_path')
         cvae_visualize(args.data_path, args.featurizer_path, args.cvae_decoder_path)
 
 

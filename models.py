@@ -310,7 +310,13 @@ def cvae_plot_results(models,
                       class_map,
                       model_base_path,
                       model_name,
-                      latent_dim):
+                      latent_dim,
+                      visualize_originals=False):
+    # Check model base path
+    if not os.path.exists(model_base_path):
+        print('Creating directory for visualizations: ' + model_base_path)
+        os.makedirs(model_base_path)
+
     # Axes indexes
     for axe0 in range(latent_dim):
         for axe1 in range(axe0+1, latent_dim):
@@ -319,6 +325,18 @@ def cvae_plot_results(models,
     # Random non-grid
     for idx in range(len(class_map)):
         _cvae_plot_grid(models, data, class_map, model_base_path, model_name, latent_dim, None, class_idx=idx)
+        if visualize_originals:
+            x_validate, y_validate, condition_validate = data
+
+            class_label = class_map[np.argmax(y_validate[idx])]
+            sample = x_validate[idx]
+            fig = plt.figure()
+            plt.imshow(np.reshape(sample, (28, 28)), cmap='Greys_r')
+            plt.savefig(os.path.join(model_base_path,
+                                 model_name + '_' + class_label + '_' + 'orig' + '.png'))
+            plt.close(fig)
+
+
 
 
 def _get_encoder(input_shape=(28, 28, 1)):
