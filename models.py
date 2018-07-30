@@ -10,6 +10,9 @@ from keras import backend as K
 from keras.losses import binary_crossentropy, mse
 import matplotlib.pyplot as plt
 import json
+from scipy import spatial
+from sklearn import preprocessing
+from data_utils import show_images
 
 
 def get_classification_model(n_class, input_shape=(28, 28, 1), print_summary=False):
@@ -83,7 +86,8 @@ def cvae_get_encodings(train_x_norm,
                        train_y_hot,
                        n_class,
                        featurizer_path=None,
-                       featurizer=None):
+                       featurizer=None,
+                       encoding_type='cosine'):
     # Load feature vector generator and decoder
     if featurizer_path is None and featurizer is None:
         raise ValueError('You must set either featurizer of featurizer_path')
@@ -96,11 +100,19 @@ def cvae_get_encodings(train_x_norm,
 
     # Init variables used to obtain mean vector for every class
     encoding_dim = predictions.shape[1]
-    feature_vec_means = np.zeros((n_class, encoding_dim))
+    feature_vectors = np.zeros((n_class, encoding_dim))
     train_y = np.argmax(train_y_hot, axis=1)
     encodings = np.zeros((train_x_norm.shape[0], encoding_dim))
 
-    # Mean encodings
+    if encoding_type == 'mean':
+        encodings = get_means(predictions, train_y, n_class, feature_vectors, encodings)
+    elif encoding_type == 'cosine':
+        encodings = get_min_cosine_distance(predictions, train_y, n_class, feature_vectors, encodings)
+
+    return encodings
+
+
+def get_means(predictions, train_y, n_class, feature_vec_means, encodings):
     for i in range(n_class):
         indexes = train_y == i
         feature_vec = np.mean(predictions[indexes], axis=0)
@@ -108,6 +120,40 @@ def cvae_get_encodings(train_x_norm,
         encodings[indexes] = feature_vec
 
     return encodings
+
+def get_min_cosine_distance(predictions, train_y, n_class, feature_vectors, encodings):
+    all_imgs = []
+    decoder = load_model('autoencoder_64/autoenc_64_decoder_49_0.00.hdf5')
+    for i in range(n_class):
+        print("step", i)
+        indexes = train_y == i
+        feature_vec_class_i = predictions[indexes]
+
+        normalized_vectors = preprocessing.normalize(feature_vec_class_i, axis=0)
+        best_vec = feature_vec_class_i[np.argmax(np.sum(normalized_vectors@normalized_vectors.T, axis=0).flatten())]
+        encodings[indexes] = best_vec
+        all_imgs.append(np.reshape(decoder.predict(best_vec), (28, 28)))
+
+    show_images(all_imgs)
+
+
+    return encodings
+#
+# def get_min_cosine_distance(predictions, train_y, n_class, feature_vectors, encodings):
+#     for i in range(n_class):
+#         print("step", i)
+#         indexes = train_y == i
+#         feature_vec_class_i = predictions[indexes]
+#         min_vec_dist = 200000
+#         for vec in feature_vec_class_i:
+#             cur_vec_dist = 0
+#             for vec2 in feature_vec_class_i:
+#                 cur_vec_dist += spatial.distance.cosine(vec, vec2)
+#             if cur_vec_dist < min_vec_dist:
+#                 feature_vectors[i] = vec
+#         encodings[indexes] = feature_vectors[i]
+#
+#     return encodings
 
 
 def get_cvae(input_shape, img_shape, condition_dim,
