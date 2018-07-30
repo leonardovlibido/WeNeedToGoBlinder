@@ -202,37 +202,48 @@ def visualize_autoencoder(enc_path, dec_path, data_path='emnist/emnist-balanced-
     show_images(show_orig + show_output, cols=2)
 
 
-def visualize_CVAE(feature_gen_path, dec_path, data_path='emnist/emnist-balanced-train.csv'):
-    # Load raw data, normalize and hot encode
-    raw_train_x, raw_train_y, class_map = load_dataset(data_path)
-    train_x_all, _, n_class = prepare_data(raw_train_x, raw_train_y, class_map)
+def cvae_visualize(data_path, featurizer_path, cvae_decoder_path):
+    # Load data
+    x_train, y_train, class_map = load_dataset(data_path, mpath=None)
+    x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
 
-    # Split data set to train/validation
-    # NOTE: X is input and output this is not mistake
-    train_x, validation_x, train_y, validation_y = train_test_split(train_x_all, train_x_all,
-                                                                    test_size=0.2, random_state=42)
-    # Evaluate CVAE
-    decoder = load_model(dec_path)
-    feature_vec_gen = load_model(feature_gen_path)
-    feature_vec_gen = prepare_classification_model(feature_vec_gen)
-    explore_x = train_x[:5]
+    # Load models
+    featurizer = load_model(featurizer_path)
+    decoder = load_model(cvae_decoder_path)
 
-    # Visualize auto encoder
-    show_orig = []
-    show_output = []
-    latent_dim = 64
-    for img in explore_x:
-        c = feature_vec_gen .predict(img.reshape(1, 28, 28, 1))
-        c = c.reshape((-1,))
-        z = np.zeros((64, ))
-        decoder_input = np.reshape(np.concatenate([z, c]), (1, 96))
-        out_img = decoder.predict(decoder_input)
+    # Chose random example from each class
+    x_samples = []
+    y_samples = []
+    np.random.seed(42)
+    for class_idx in range(n_class):
+        indexes = np.argmax(y_train, axis=1) == class_idx
+        x_class = x_train[indexes]
+        y_class = y_train[indexes]
 
-        show_orig.append(img.reshape((28, 28)))
-        show_output.append(out_img.reshape((28, 28)))
+        sample_idx = np.random.randint(low=0, high=x_class.shape[0])
+        x_samples.append(x_class[sample_idx])
+        y_samples.append(y_class[sample_idx])
 
-    for i in range(len(show_orig)):
-        show_orig[i] = (show_orig[i] + 1) / 2
-        show_output[i] = (show_output[i] + 1) / 2
+    # Form dataset
+    x_samples = np.array(x_samples)
+    y_samples = np.array(y_samples)
+    condition_samples = featurizer.predict(x_samples)
 
-    show_images(show_orig + show_output, cols=2)
+    # Call visualization
+    # model_base_path,
+    # model_name,
+    # latent_dim
+    decoder_fname = os.path.basename(cvae_decoder_path)
+    decoder_parts = decoder_fname.split('_')
+    model_name = ''
+    for part in decoder_parts:
+        if part == 'decoder':
+            break
+
+        if model_name == '':
+            model_name = part
+        else:
+            model_name = model_name + '_' + part
+
+    cvae_plot_results((None, decoder), (x_samples, y_samples, condition_samples), class_map,
+                      os.path.join('visualizations', model_name), model_name, 4)

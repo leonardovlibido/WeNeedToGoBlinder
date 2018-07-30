@@ -36,6 +36,8 @@ def main():
     if args.use_case == 'train_cvae':
         cvae_train(args.data_path, args.featurizer_path, args.model_name, args.reconstruction, args.encoding_type,
                    int(args.batch_size), int(args.epochs), float(args.limit_gpu_fraction))
+    elif args.use_case == 'visualize_cvae':
+        cvae_visualize(args.data_path, args.featurizer_path, args.cvae_decoder_path)
 
 
 if __name__ == "__main__":

@@ -34,10 +34,15 @@ def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
     X = np.array(X)
     Y = np.array(Y)
 
-    with open(mpath) as map_file:
-        for line in map_file:
-            c_and_ascii = line.split()
-            M[int(c_and_ascii[0].strip())] = str(chr(int(c_and_ascii[1].strip())))
+    if mpath is not None:
+        with open(mpath) as map_file:
+            for line in map_file:
+                c_and_ascii = line.split()
+                M[int(c_and_ascii[0].strip())] = str(chr(int(c_and_ascii[1].strip())))
+    else:
+        n_class = np.max(Y) + 1
+        for i in range(n_class):
+            M[i] = str(i)
     return X, Y, M
 
 
