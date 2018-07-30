@@ -59,6 +59,7 @@ def cvae_train(data_path,
                featurizer_path,
                model_name,
                reconstruction,
+               encoding_type,
                batch_size,
                epochs,
                limit_gpu_fraction,
@@ -66,7 +67,7 @@ def cvae_train(data_path,
     # Notify user what are we training
     model_base_path = os.path.join(os.path.join('models', 'cvae'), model_name)
     config = {'data_path': data_path, 'featurizer_path': featurizer_path, 'model_name': model_base_path,
-              'reconstruction': reconstruction, 'batch_size': batch_size, 'epochs': epochs,
+              'reconstruction': reconstruction, 'encoding_type':encoding_type, 'batch_size': batch_size, 'epochs': epochs,
               'limit_gpu_fraction': limit_gpu_fraction, 'latent_dim': latent_dim}
 
 
@@ -76,7 +77,7 @@ def cvae_train(data_path,
     # Load data
     x_train, y_train, class_map = load_dataset(data_path)
     x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
-    condition_train = cvae_get_encodings(x_train, y_train, n_class, featurizer_path=featurizer_path)
+    condition_train = cvae_get_encodings(x_train, y_train, n_class, encoding_type, featurizer_path=featurizer_path)
 
     # Split data
     validation_split = 0.2
@@ -104,6 +105,7 @@ def cvae_train(data_path,
              validation_data=([x_validate, condition_validate], None),
              callbacks=[AutoencoderCheckpointer(model_base_path, model_name,
                                                 encoder, decoder, config),
+                        ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10),
                         TensorBoard(os.path.join('logs', model_name))])
 
     # Plot training

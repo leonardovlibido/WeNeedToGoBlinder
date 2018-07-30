@@ -20,6 +20,9 @@ def main():
     help_ = "Reconstruction loss (binary_crossentropy or mse)"
     parser.add_argument("-rl", "--reconstruction", help=help_, default='binary_crossentropy')
 
+    help_ = "Specifies how to choose encoding vector for class (mean, cosine or square)"
+    parser.add_argument("-et", "--encoding_type", help=help_, default='mean')
+
     help_ = "Batch size"
     parser.add_argument("-bs", "--batch_size", help=help_, default=64)
 
@@ -31,8 +34,8 @@ def main():
 
     args = parser.parse_args()
     if args.use_case == 'train_cvae':
-        cvae_train(args.data_path, args.featurizer_path, args.model_name, args.reconstruction, int(args.batch_size),
-                   int(args.epochs), float(args.limit_gpu_fraction))
+        cvae_train(args.data_path, args.featurizer_path, args.model_name, args.reconstruction, args.encoding_type,
+                   int(args.batch_size), int(args.epochs), float(args.limit_gpu_fraction))
 
 
 if __name__ == "__main__":
