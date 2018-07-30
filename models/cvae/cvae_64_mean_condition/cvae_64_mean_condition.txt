@@ -1,0 +1,11 @@
+{
+    "data_path": "emnist/emnist-balanced-train.csv",
+    "featurizer_path": "models/autoencoder/autoencoder_64/autoenc_64_encoder_49_0.00.hdf5",
+    "model_name": "models\\cvae\\cvae_64_mean_condition",
+    "reconstruction": "binary_crossentropy",
+    "encoding_type": "mean",
+    "batch_size": 64,
+    "epochs": 100,
+    "limit_gpu_fraction": 0.375,
+    "latent_dim": 4
+}
