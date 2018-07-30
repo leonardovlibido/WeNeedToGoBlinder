@@ -70,6 +70,7 @@ def _cvae_loss(X, outputs, z_mean, z_log_var, reconstruction):
     if reconstruction == 'binary_crossentropy':
         reconstruction_loss = binary_crossentropy(X, outputs)
     elif reconstruction == 'mse':
+        print('Using mse reconstruction')
         reconstruction_loss = mse(X, outputs)
     else:
         raise ValueError('Reconstruction losses are crossentropy or mse.')
@@ -135,20 +136,15 @@ def get_min_cosine_distance(predictions, train_y, n_class, encodings, feature_ve
     return encodings
 
 def get_min_square_distance(predictions, train_y, n_class, encodings, feature_vectors):
-    all_imgs = []
-    decoder = load_model('models/autoencoder/autoencoder_64/autoenc_64_decoder_49_0.00.hdf5')
     for i in range(n_class):
         indexes = train_y == i
         feature_vec_class_i = predictions[indexes]
 
-        normalized_vectors = preprocessing.normalize(feature_vec_class_i, axis=0)
-        best_vec = feature_vec_class_i[np.argmax(np.sum(normalized_vectors@normalized_vectors.T, axis=0).flatten())]
-        
+        squared_dist = np.sqrt(np.sum(np.square(feature_vec_class_i[:, np.newaxis] - feature_vec_class_i), axis=2))
+        squared_dist_sum = np.sum(squared_dist, axis=0)
+        best_vec = feature_vec_class_i[np.argmin(squared_dist_sum)]
         encodings[indexes] = best_vec
 
-        all_imgs.append(np.reshape(decoder.predict(np.reshape(best_vec, (1, 64))), (28, 28)))
-
-    show_images(all_imgs, cols=7)
     return encodings
 
 
