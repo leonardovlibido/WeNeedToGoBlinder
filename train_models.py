@@ -56,6 +56,7 @@ def classifier_train(data_path='emnist/emnist-balanced-train.csv',
 
 
 def cvae_train(data_path,
+               class_map_path,
                featurizer_path,
                model_name,
                reconstruction,
@@ -75,11 +76,11 @@ def cvae_train(data_path,
     _limit_gpu_memory(limit_gpu_fraction)
 
     # Load data
-    x_train, y_train, class_map = load_dataset(data_path)
+    x_train, y_train, class_map = load_dataset(data_path, class_map_path)
     x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
     condition_train = cvae_get_encodings(x_train, y_train, n_class, encoding_type, featurizer_path=featurizer_path)
 
-    x_test, y_test, _ = load_dataset('emnist/emnist-balanced-test.csv')
+    x_test, y_test, _ = load_dataset('emnist/emnist-balanced-test.csv', class_map_path)
     x_test, y_test, _ = prepare_data(x_test, y_test, class_map)
     condition_test = cvae_get_encodings(x_test, y_test, n_class, encoding_type, featurizer_path=featurizer_path)
 
@@ -193,9 +194,9 @@ def visualize_autoencoder(enc_path, dec_path, data_path='emnist/emnist-balanced-
     show_images(show_orig + show_output, cols=2)
 
 
-def cvae_visualize(data_path, featurizer_path, cvae_decoder_path):
+def cvae_visualize(data_path, class_map_path, featurizer_path, cvae_decoder_path):
     # Load data
-    x_train, y_train, class_map = load_dataset(data_path)
+    x_train, y_train, class_map = load_dataset(data_path, class_map_path)
     x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
 
     # Load models
@@ -218,7 +219,7 @@ def cvae_visualize(data_path, featurizer_path, cvae_decoder_path):
     # Form dataset
     x_samples = np.array(x_samples)
     y_samples = np.array(y_samples)
-    condition_samples = featurizer.predict(np.reshape(x_samples, (-1, 28, 28, 1)))
+    condition_samples = featurizer.predict(np.reshape(x_samples, (-1, 28, 28, 1)), verbose=True)
 
     # Call visualization
     decoder_fname = os.path.basename(cvae_decoder_path)

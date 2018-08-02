@@ -97,7 +97,7 @@ def cvae_get_encodings(train_x_norm,
         featurizer = load_model(featurizer_path)
 
     # Get all encodings
-    predictions = featurizer.predict(train_x_norm.reshape(-1, 28, 28, 1))
+    predictions = featurizer.predict(train_x_norm.reshape(-1, 28, 28, 1), verbose=True)
 
     # Init variables used to obtain mean vector for every class
     encoding_dim = predictions.shape[1]

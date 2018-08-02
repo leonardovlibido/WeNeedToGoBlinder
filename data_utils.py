@@ -20,7 +20,7 @@ def show_images(images, cols=1, titles=None):
     fig.set_size_inches(np.array(fig.get_size_inches()) * n_images)
     plt.show()
 
-def load_dataset(fpath, mpath='emnist/emnist-balanced-mapping.txt'):
+def load_dataset(fpath, mpath):
     X = []
     Y = []
 
