@@ -23,6 +23,9 @@ def main():
     help_ = "Reconstruction loss (binary_crossentropy or mse)"
     parser.add_argument("-rl", "--reconstruction", help=help_, default='binary_crossentropy')
 
+    help_ = "Latent dimension parameter"
+    parser.add_argument("-ldim", "--latent_dim", help=help_, default=64)
+
     help_ = "Specifies how to choose encoding vector for class (mean, cosine or square)"
     parser.add_argument("-et", "--encoding_type", help=help_, default='mean')
 
@@ -46,7 +49,7 @@ def main():
             cmpath = 'emnist/emnist-balanced-mapping.txt'
         cvae_train(args.data_path, cmpath, args.featurizer_path, args.model_name, args.reconstruction,
                    args.encoding_type,
-                   int(args.batch_size), int(args.epochs), float(args.limit_gpu_fraction))
+                   int(args.batch_size), int(args.epochs), float(args.limit_gpu_fraction), int(args.latent_dim))
     elif args.use_case == 'visualize_cvae':
         if args.cvae_decoder_path is None:
             raise ValueError('Must set cvae_decoder_path')
@@ -54,7 +57,7 @@ def main():
             cmpath = args.class_map_path
         else:
             cmpath = None
-        cvae_visualize(args.data_path, cmpath, args.featurizer_path, args.cvae_decoder_path)
+        cvae_visualize(args.data_path, cmpath, args.featurizer_path, args.cvae_decoder_path, int(args.latent_dim))
 
 
 if __name__ == "__main__":

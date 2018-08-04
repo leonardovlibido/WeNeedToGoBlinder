@@ -66,6 +66,7 @@ def _cvae_sampling(args):
     epsilon = K.random_normal(shape=(batch, dim))
     return z_mean + K.exp(0.5 * z_log_var) * epsilon
 
+
 def _cvae_loss(X, outputs, z_mean, z_log_var, reconstruction):
     if reconstruction == 'binary_crossentropy':
         reconstruction_loss = binary_crossentropy(X, outputs)
@@ -112,6 +113,10 @@ def cvae_get_encodings(train_x_norm,
         encodings = get_min_cosine_distance(predictions, train_y, n_class, encodings, feature_vectors)
     elif encoding_type == 'square':
         encodings = get_min_square_distance(predictions, train_y, n_class, encodings, feature_vectors)
+    elif encoding_type == 'instance':
+        encodings = predictions
+    else:
+        raise ValueError('Unknown encoding type ' + encoding_type)
 
     return encodings
 
@@ -316,7 +321,7 @@ def _cvae_plot_grid(models,
             figure[i * digit_size: (i + 1) * digit_size,
             j * digit_size: (j + 1) * digit_size] = digit
 
-    plt.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
     start_range = digit_size // 2
     end_range = n * digit_size + start_range + 1
     pixel_range = np.arange(start_range, end_range, digit_size)
@@ -336,6 +341,7 @@ def _cvae_plot_grid(models,
         plt.imshow(figure, cmap='Greys_r')
         plt.savefig(os.path.join(model_base_path,
                                  model_name + '_' + alphanum + '_' + str(class_idx) + '.png'))
+    plt.close(fig)
 
 
 def cvae_plot_results(models,

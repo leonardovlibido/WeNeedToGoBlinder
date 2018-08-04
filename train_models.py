@@ -64,7 +64,7 @@ def cvae_train(data_path,
                batch_size,
                epochs,
                limit_gpu_fraction,
-               latent_dim=4):
+               latent_dim):
     # Notify user what are we training
     model_base_path = os.path.join(os.path.join('models', 'cvae'), model_name)
     config = {'data_path': data_path, 'featurizer_path': featurizer_path, 'model_name': model_base_path,
@@ -97,7 +97,7 @@ def cvae_train(data_path,
              validation_data=([x_test, condition_test], None),
              callbacks=[AutoencoderCheckpointer(model_base_path, model_name,
                                                 encoder, decoder, config),
-                        ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10),
+                        ReduceLROnPlateau(monitor='val_loss', factor=0.2, patience=10, verbose=1),
                         TensorBoard(os.path.join('logs', model_name))])
 
     # Plot training
@@ -194,7 +194,7 @@ def visualize_autoencoder(enc_path, dec_path, data_path='emnist/emnist-balanced-
     show_images(show_orig + show_output, cols=2)
 
 
-def cvae_visualize(data_path, class_map_path, featurizer_path, cvae_decoder_path):
+def cvae_visualize(data_path, class_map_path, featurizer_path, cvae_decoder_path, latent_dim):
     # Load data
     x_train, y_train, class_map = load_dataset(data_path, class_map_path)
     x_train, y_train, n_class = prepare_data(x_train, y_train, class_map)
@@ -254,7 +254,6 @@ def cvae_visualize(data_path, class_map_path, featurizer_path, cvae_decoder_path
         plt.close(fig)
 
         # Get generated
-        latent_dim = 4
         decoder_in = np.hstack((np.zeros((latent_dim, )), condition))
         sample_generated = decoder.predict(np.array([decoder_in]))
 
